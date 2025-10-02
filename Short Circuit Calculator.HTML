@@ -500,6 +500,226 @@
             border: 2px solid #10b981;
         }
         
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 3% auto;
+            padding: 0;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        
+        .modal-body {
+            padding: 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .close {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        
+        .close:hover,
+        .close:focus {
+            opacity: 1;
+        }
+        
+        /* Database Management Styles */
+        .db-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding-left: 40px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #718096;
+            font-size: 18px;
+        }
+        
+        .filter-dropdown {
+            padding: 13px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fafbfc;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .filter-dropdown:hover {
+            border-color: #cbd5e0;
+        }
+        
+        .component-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        
+        .component-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        
+        .component-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .component-card-title {
+            font-weight: 600;
+            color: #1e3c72;
+            font-size: 1.1em;
+        }
+        
+        .component-card-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+        
+        .btn-icon:hover {
+            background: #f0f4ff;
+        }
+        
+        .btn-edit {
+            color: #667eea;
+        }
+        
+        .btn-delete {
+            color: #ef4444;
+        }
+        
+        .btn-favorite {
+            color: #fbbf24;
+        }
+        
+        .btn-favorite.active {
+            color: #f59e0b;
+        }
+        
+        .component-modified {
+            border-left: 4px solid #fbbf24;
+            background: #fffbeb;
+        }
+        
+        .edit-indicator {
+            display: inline-block;
+            background: #fbbf24;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            margin-left: 8px;
+            font-weight: 600;
+        }
+        
+        .favorites-section {
+            background: #fffbeb;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #fbbf24;
+        }
+        
+        .favorites-section h4 {
+            color: #92400e;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .tab-badge {
+            display: inline-block;
+            background: #ef4444;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            margin-left: 5px;
+            font-weight: 600;
+        }
+        
         .sensitivity-analysis h4 {
             color: #065f46;
             margin-bottom: 12px;
@@ -699,13 +919,34 @@
                 <div class="form-group">
                     <label>Component Type:</label>
                     <select id="componentType">
-                        <option value="transformer">Transformer</option>
-                        <option value="cable">Cable</option>
-                        <option value="generator">Generator</option>
-                        <option value="motor">Motor</option>
-                        <option value="utility_isc">Utility Source (ISC Known)</option>
-                        <option value="utility_mva">Utility Source (MVA Known)</option>
-                        <option value="utility_impedance">Utility Source (Impedance Known)</option>
+                        <optgroup label="Power Sources">
+                            <option value="utility_isc">Utility Source (ISC Known)</option>
+                            <option value="utility_mva">Utility Source (MVA Known)</option>
+                            <option value="utility_impedance">Utility Source (Impedance Known)</option>
+                            <option value="generator">Generator</option>
+                        </optgroup>
+                        <optgroup label="Transformation Equipment">
+                            <option value="transformer">Transformer</option>
+                        </optgroup>
+                        <optgroup label="Distribution Equipment">
+                            <option value="distribution_board">Distribution Board</option>
+                            <option value="switchgear">Switchgear</option>
+                            <option value="mcc">Motor Control Center</option>
+                            <option value="load_center">Load Center</option>
+                        </optgroup>
+                        <optgroup label="Transmission">
+                            <option value="cable">Cable</option>
+                        </optgroup>
+                        <optgroup label="Loads">
+                            <option value="motor">Motor</option>
+                        </optgroup>
+                        <optgroup label="Power Quality Equipment">
+                            <option value="reactor">Reactor</option>
+                            <option value="capacitor_bank">Capacitor Bank</option>
+                            <option value="ups">UPS System</option>
+                            <option value="surge_protection">Surge Protection Device</option>
+                            <option value="harmonic_filter">Harmonic Filter</option>
+                        </optgroup>
                     </select>
                 </div>
                 
@@ -740,6 +981,14 @@
         <div id="equipmentTab" class="tab-content">
             <div style="padding: 35px; background: #fafbfc;">
                 <h2 class="section-title">Equipment Database</h2>
+                
+                <div class="button-group" style="margin-bottom: 25px;">
+                    <button class="btn btn-primary" onclick="openDatabaseManager()">🗄️ Database Manager</button>
+                    <button class="btn btn-secondary" onclick="compareComponents()">📊 Compare Components</button>
+                    <button class="btn btn-secondary" onclick="generateSpecReport()">📋 Generate Spec Report</button>
+                    <button class="btn btn-info" onclick="undoEdit()" title="Undo last edit">↶ Undo</button>
+                </div>
+                
                 <div class="equipment-database">
                     <h4>Standard Transformer Database</h4>
                     <div class="database-grid" id="transformerDB"></div>
@@ -751,6 +1000,15 @@
                 <div class="equipment-database">
                     <h4>Standard Generator Database</h4>
                     <div class="database-grid" id="generatorDB"></div>
+                </div>
+                
+                <div class="equipment-database" style="background: #f0f9ff; border-color: #0284c7;">
+                    <h4>✨ New Component Types Available</h4>
+                    <div style="padding: 15px; color: #0c4a6e;">
+                        <p style="margin-bottom: 10px;"><strong>Distribution Equipment:</strong> Distribution Boards, Switchgear, Motor Control Centers, Load Centers</p>
+                        <p style="margin-bottom: 10px;"><strong>Power Quality Equipment:</strong> Reactors, Capacitor Banks, UPS Systems, Surge Protection Devices, Harmonic Filters</p>
+                        <p style="margin-bottom: 0;">Select these from the Component Type dropdown in the Calculator tab to add them to your project.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1027,6 +1285,203 @@
                     <input type="number" id="compXR" placeholder="e.g., 10" step="0.1">
                     <div class="info-text">Typical: 10-20 for utility systems</div>
                 </div>
+            `,
+            distribution_board: `
+                <div class="form-group">
+                    <label>Board Rating (A):</label>
+                    <input type="number" id="compRating" placeholder="e.g., 800" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (V):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 480" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Number of Outgoing Circuits:</label>
+                    <input type="number" id="compCircuits" placeholder="e.g., 12" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Busbar Material:</label>
+                    <select id="compBusbarMaterial">
+                        <option value="copper">Copper</option>
+                        <option value="aluminum">Aluminum</option>
+                    </select>
+                </div>
+            `,
+            switchgear: `
+                <div class="form-group">
+                    <label>Rated Current (A):</label>
+                    <input type="number" id="compRating" placeholder="e.g., 2000" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Short Circuit Rating (kA):</label>
+                    <input type="number" id="compSCRating" placeholder="e.g., 40" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Switchgear Type:</label>
+                    <select id="compSwitchgearType">
+                        <option value="air_insulated">Air Insulated (AIS)</option>
+                        <option value="gas_insulated">Gas Insulated (GIS)</option>
+                        <option value="metal_enclosed">Metal Enclosed</option>
+                    </select>
+                </div>
+            `,
+            mcc: `
+                <div class="form-group">
+                    <label>MCC Rating (A):</label>
+                    <input type="number" id="compRating" placeholder="e.g., 1200" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (V):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 480" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Number of Buckets:</label>
+                    <input type="number" id="compBuckets" placeholder="e.g., 24" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Control Method:</label>
+                    <select id="compControlMethod">
+                        <option value="dol">Direct On-Line (DOL)</option>
+                        <option value="star_delta">Star-Delta</option>
+                        <option value="vfd">Variable Frequency Drive (VFD)</option>
+                        <option value="soft_starter">Soft Starter</option>
+                    </select>
+                </div>
+            `,
+            load_center: `
+                <div class="form-group">
+                    <label>Load Center Rating (A):</label>
+                    <input type="number" id="compRating" placeholder="e.g., 600" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (V):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 208" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Number of Breakers:</label>
+                    <input type="number" id="compBreakers" placeholder="e.g., 42" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Configuration:</label>
+                    <select id="compConfiguration">
+                        <option value="single_phase">Single Phase</option>
+                        <option value="three_phase">Three Phase</option>
+                    </select>
+                </div>
+            `,
+            reactor: `
+                <div class="form-group">
+                    <label>Rated Power (MVAR):</label>
+                    <input type="number" id="compPower" placeholder="e.g., 5.0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Reactance (%):</label>
+                    <input type="number" id="compReactance" placeholder="e.g., 6.0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Reactor Type:</label>
+                    <select id="compReactorType">
+                        <option value="current_limiting">Current Limiting</option>
+                        <option value="filter">Filter Reactor</option>
+                        <option value="smoothing">Smoothing Reactor</option>
+                    </select>
+                </div>
+            `,
+            capacitor_bank: `
+                <div class="form-group">
+                    <label>Rated Power (MVAR):</label>
+                    <input type="number" id="compPower" placeholder="e.g., 2.5" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Number of Steps:</label>
+                    <input type="number" id="compSteps" placeholder="e.g., 4" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Connection Type:</label>
+                    <select id="compConnectionType">
+                        <option value="star">Star (Wye)</option>
+                        <option value="delta">Delta</option>
+                    </select>
+                </div>
+            `,
+            ups: `
+                <div class="form-group">
+                    <label>Rated Power (kVA):</label>
+                    <input type="number" id="compPower" placeholder="e.g., 100" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Output Voltage (V):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 480" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Backup Time (minutes):</label>
+                    <input type="number" id="compBackupTime" placeholder="e.g., 30" step="1">
+                </div>
+                <div class="form-group">
+                    <label>UPS Configuration:</label>
+                    <select id="compUPSConfig">
+                        <option value="online">Online/Double Conversion</option>
+                        <option value="line_interactive">Line Interactive</option>
+                        <option value="offline">Offline/Standby</option>
+                    </select>
+                </div>
+            `,
+            surge_protection: `
+                <div class="form-group">
+                    <label>Maximum Continuous Operating Voltage (MCOV) (V):</label>
+                    <input type="number" id="compMCOV" placeholder="e.g., 550" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Voltage Protection Level (VPL) (V):</label>
+                    <input type="number" id="compVPL" placeholder="e.g., 1200" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Discharge Current (kA):</label>
+                    <input type="number" id="compDischargeCurrent" placeholder="e.g., 40" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>SPD Type:</label>
+                    <select id="compSPDType">
+                        <option value="type1">Type 1 (Class I)</option>
+                        <option value="type2">Type 2 (Class II)</option>
+                        <option value="type3">Type 3 (Class III)</option>
+                    </select>
+                </div>
+            `,
+            harmonic_filter: `
+                <div class="form-group">
+                    <label>Filter Rating (MVAR):</label>
+                    <input type="number" id="compPower" placeholder="e.g., 3.0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Tuned Harmonic Order:</label>
+                    <input type="number" id="compHarmonicOrder" placeholder="e.g., 5" step="1">
+                    <div class="info-text">Common: 5th, 7th, 11th, 13th</div>
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Filter Type:</label>
+                    <select id="compFilterType">
+                        <option value="passive">Passive Filter</option>
+                        <option value="active">Active Filter</option>
+                        <option value="hybrid">Hybrid Filter</option>
+                    </select>
+                </div>
             `
         };
         
@@ -1186,6 +1641,51 @@
                 component.baseMVA = parseFloat(document.getElementById('compBaseMVA').value);
                 component.voltage = parseFloat(document.getElementById('compVoltage').value);
                 component.xr = parseFloat(document.getElementById('compXR').value);
+            } else if (type === 'distribution_board') {
+                component.rating = parseFloat(document.getElementById('compRating').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.circuits = parseInt(document.getElementById('compCircuits').value);
+                component.busbarMaterial = document.getElementById('compBusbarMaterial').value;
+            } else if (type === 'switchgear') {
+                component.rating = parseFloat(document.getElementById('compRating').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.scRating = parseFloat(document.getElementById('compSCRating').value);
+                component.switchgearType = document.getElementById('compSwitchgearType').value;
+            } else if (type === 'mcc') {
+                component.rating = parseFloat(document.getElementById('compRating').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.buckets = parseInt(document.getElementById('compBuckets').value);
+                component.controlMethod = document.getElementById('compControlMethod').value;
+            } else if (type === 'load_center') {
+                component.rating = parseFloat(document.getElementById('compRating').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.breakers = parseInt(document.getElementById('compBreakers').value);
+                component.configuration = document.getElementById('compConfiguration').value;
+            } else if (type === 'reactor') {
+                component.power = parseFloat(document.getElementById('compPower').value);
+                component.reactance = parseFloat(document.getElementById('compReactance').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.reactorType = document.getElementById('compReactorType').value;
+            } else if (type === 'capacitor_bank') {
+                component.power = parseFloat(document.getElementById('compPower').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.steps = parseInt(document.getElementById('compSteps').value);
+                component.connectionType = document.getElementById('compConnectionType').value;
+            } else if (type === 'ups') {
+                component.power = parseFloat(document.getElementById('compPower').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.backupTime = parseInt(document.getElementById('compBackupTime').value);
+                component.upsConfig = document.getElementById('compUPSConfig').value;
+            } else if (type === 'surge_protection') {
+                component.mcov = parseFloat(document.getElementById('compMCOV').value);
+                component.vpl = parseFloat(document.getElementById('compVPL').value);
+                component.dischargeCurrent = parseFloat(document.getElementById('compDischargeCurrent').value);
+                component.spdType = document.getElementById('compSPDType').value;
+            } else if (type === 'harmonic_filter') {
+                component.power = parseFloat(document.getElementById('compPower').value);
+                component.harmonicOrder = parseInt(document.getElementById('compHarmonicOrder').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.filterType = document.getElementById('compFilterType').value;
             }
             
             components.push(component);
@@ -1215,12 +1715,36 @@
                     details = `${comp.mva} MVA, X/R=${comp.xr}`;
                 } else if (comp.type === 'utility_impedance') {
                     details = `${comp.impedance}% on ${comp.baseMVA} MVA base`;
+                } else if (comp.type === 'distribution_board') {
+                    details = `${comp.rating}A, ${comp.voltage}V, ${comp.circuits} circuits`;
+                } else if (comp.type === 'switchgear') {
+                    details = `${comp.rating}A, ${comp.voltage}kV, ${comp.scRating}kA SC rating`;
+                } else if (comp.type === 'mcc') {
+                    details = `${comp.rating}A, ${comp.voltage}V, ${comp.buckets} buckets`;
+                } else if (comp.type === 'load_center') {
+                    details = `${comp.rating}A, ${comp.voltage}V, ${comp.breakers} breakers`;
+                } else if (comp.type === 'reactor') {
+                    details = `${comp.power} MVAR, ${comp.reactance}% X, ${comp.reactorType}`;
+                } else if (comp.type === 'capacitor_bank') {
+                    details = `${comp.power} MVAR, ${comp.voltage}kV, ${comp.steps} steps`;
+                } else if (comp.type === 'ups') {
+                    details = `${comp.power} kVA, ${comp.voltage}V, ${comp.backupTime}min backup`;
+                } else if (comp.type === 'surge_protection') {
+                    details = `MCOV: ${comp.mcov}V, VPL: ${comp.vpl}V, ${comp.spdType}`;
+                } else if (comp.type === 'harmonic_filter') {
+                    details = `${comp.power} MVAR, ${comp.harmonicOrder}th harmonic, ${comp.filterType}`;
                 }
                 
+                const modifiedClass = comp.modified ? ' component-modified' : '';
+                const editIndicator = comp.modified ? '<span class="edit-indicator">EDITED</span>' : '';
+                
                 return `
-                    <div class="component-item">
-                        <span><strong>${comp.type.toUpperCase().replace(/_/g, ' ')}</strong>: ${details}</span>
-                        <button class="btn btn-danger" onclick="removeComponent(${index})">Remove</button>
+                    <div class="component-item${modifiedClass}">
+                        <span><strong>${comp.type.toUpperCase().replace(/_/g, ' ')}</strong>: ${details}${editIndicator}</span>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn btn-warning" style="padding: 8px 16px; font-size: 13px;" onclick="editComponent(${index})">Edit</button>
+                            <button class="btn btn-danger" onclick="removeComponent(${index})">Remove</button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -1957,6 +2481,379 @@
             a.click();
             URL.revokeObjectURL(url);
         }
+        
+        // Component Editing Functions
+        let editingIndex = -1;
+        let componentHistory = [];
+        
+        function editComponent(index) {
+            editingIndex = index;
+            const comp = components[index];
+            
+            // Store in history for undo
+            componentHistory.push(JSON.parse(JSON.stringify(components)));
+            
+            const modal = document.getElementById('editModal');
+            const modalBody = document.getElementById('editModalBody');
+            
+            // Get the template for this component type
+            const template = componentInputTemplates[comp.type];
+            modalBody.innerHTML = `
+                <h3 style="color: #1e3c72; margin-bottom: 20px;">Editing: ${comp.type.toUpperCase().replace(/_/g, ' ')}</h3>
+                ${template}
+            `;
+            
+            // Populate the form with current values
+            setTimeout(() => {
+                Object.keys(comp).forEach(key => {
+                    if (key !== 'type' && key !== 'modified') {
+                        const element = document.getElementById('comp' + key.charAt(0).toUpperCase() + key.slice(1));
+                        if (element) {
+                            element.value = comp[key];
+                        }
+                    }
+                });
+            }, 50);
+            
+            modal.style.display = 'block';
+        }
+        
+        function saveComponentEdit() {
+            if (editingIndex < 0) return;
+            
+            const type = components[editingIndex].type;
+            const updatedComponent = { type: type, modified: true };
+            
+            // Get all values from the edit form
+            const formElements = document.getElementById('editModalBody').querySelectorAll('input, select');
+            formElements.forEach(element => {
+                if (element.id.startsWith('comp')) {
+                    const key = element.id.replace('comp', '');
+                    const propName = key.charAt(0).toLowerCase() + key.slice(1);
+                    
+                    if (element.type === 'number') {
+                        updatedComponent[propName] = parseFloat(element.value) || parseInt(element.value);
+                    } else {
+                        updatedComponent[propName] = element.value;
+                    }
+                }
+            });
+            
+            components[editingIndex] = updatedComponent;
+            updateComponentList();
+            closeEditModal();
+            
+            // Trigger recalculation if results exist
+            if (calculationResults) {
+                alert('Component updated. Please recalculate to see updated results.');
+            }
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingIndex = -1;
+        }
+        
+        function undoEdit() {
+            if (componentHistory.length > 0) {
+                components = componentHistory.pop();
+                updateComponentList();
+            }
+        }
+        
+        // Custom Component Database
+        let customDatabase = {
+            transformers: [],
+            cables: [],
+            generators: [],
+            motors: [],
+            distribution: [],
+            power_quality: []
+        };
+        
+        let favoriteComponents = [];
+        
+        function openDatabaseManager() {
+            const modal = document.getElementById('databaseModal');
+            const modalBody = document.getElementById('databaseModalBody');
+            
+            modalBody.innerHTML = `
+                <div class="db-controls">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="dbSearch" placeholder="Search components..." oninput="filterDatabase()">
+                    </div>
+                    <select class="filter-dropdown" id="dbFilter" onchange="filterDatabase()">
+                        <option value="all">All Categories</option>
+                        <option value="transformers">Transformers</option>
+                        <option value="cables">Cables</option>
+                        <option value="generators">Generators</option>
+                        <option value="motors">Motors</option>
+                        <option value="distribution">Distribution Equipment</option>
+                        <option value="power_quality">Power Quality</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="addCustomComponent()">➕ Add Custom</button>
+                    <button class="btn btn-secondary" onclick="importDatabase()">📥 Import</button>
+                    <button class="btn btn-secondary" onclick="exportDatabase()">📤 Export</button>
+                </div>
+                
+                <div id="favoritesSection" style="display: none;">
+                    <div class="favorites-section">
+                        <h4>⭐ Favorite Components</h4>
+                        <div id="favoritesList"></div>
+                    </div>
+                </div>
+                
+                <div id="databaseContent"></div>
+            `;
+            
+            loadDatabaseContent();
+            modal.style.display = 'block';
+        }
+        
+        function closeDatabaseModal() {
+            document.getElementById('databaseModal').style.display = 'none';
+        }
+        
+        function loadDatabaseContent() {
+            const content = document.getElementById('databaseContent');
+            if (!content) return;
+            
+            let html = '<h3 style="color: #1e3c72; margin-top: 20px;">Standard Database</h3>';
+            
+            // Show transformers
+            html += '<div class="equipment-database"><h4>Transformers</h4><div class="database-grid">';
+            equipmentDatabase.transformers.forEach((item, idx) => {
+                html += `
+                    <div class="component-card">
+                        <div class="component-card-header">
+                            <span class="component-card-title">${item.name}</span>
+                            <div class="component-card-actions">
+                                <button class="btn-icon btn-favorite" onclick="toggleFavorite('transformer', ${idx})">⭐</button>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.9em; color: #64748b;">
+                            ${item.power} MVA, ${item.impedance}% Z
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div></div>';
+            
+            // Show cables
+            html += '<div class="equipment-database"><h4>Cables</h4><div class="database-grid">';
+            equipmentDatabase.cables.forEach((item, idx) => {
+                html += `
+                    <div class="component-card">
+                        <div class="component-card-header">
+                            <span class="component-card-title">${item.name}</span>
+                            <div class="component-card-actions">
+                                <button class="btn-icon btn-favorite" onclick="toggleFavorite('cable', ${idx})">⭐</button>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.9em; color: #64748b;">
+                            R=${item.resistance} Ω/km
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div></div>';
+            
+            // Show generators
+            html += '<div class="equipment-database"><h4>Generators</h4><div class="database-grid">';
+            equipmentDatabase.generators.forEach((item, idx) => {
+                html += `
+                    <div class="component-card">
+                        <div class="component-card-header">
+                            <span class="component-card-title">${item.name}</span>
+                            <div class="component-card-actions">
+                                <button class="btn-icon btn-favorite" onclick="toggleFavorite('generator', ${idx})">⭐</button>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.9em; color: #64748b;">
+                            ${item.power} MVA, X"d=${item.reactance}%
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div></div>';
+            
+            // Show custom components if any
+            if (customDatabase.transformers.length > 0 || customDatabase.cables.length > 0) {
+                html += '<h3 style="color: #1e3c72; margin-top: 30px;">Custom Database</h3>';
+                html += '<p style="color: #64748b; margin-bottom: 15px;">User-defined components</p>';
+                // Add custom components here...
+            }
+            
+            content.innerHTML = html;
+            
+            // Update favorites section
+            if (favoriteComponents.length > 0) {
+                document.getElementById('favoritesSection').style.display = 'block';
+                updateFavoritesList();
+            }
+        }
+        
+        function toggleFavorite(type, index) {
+            const favKey = `${type}_${index}`;
+            const favIndex = favoriteComponents.indexOf(favKey);
+            
+            if (favIndex > -1) {
+                favoriteComponents.splice(favIndex, 1);
+            } else {
+                favoriteComponents.push(favKey);
+            }
+            
+            loadDatabaseContent();
+        }
+        
+        function updateFavoritesList() {
+            const list = document.getElementById('favoritesList');
+            if (!list) return;
+            
+            let html = '';
+            favoriteComponents.forEach(fav => {
+                const [type, index] = fav.split('_');
+                const item = equipmentDatabase[type + 's'][parseInt(index)];
+                if (item) {
+                    html += `<div class="database-item" onclick="loadFromDatabase('${type}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">${item.name}</div>`;
+                }
+            });
+            list.innerHTML = html;
+        }
+        
+        function filterDatabase() {
+            const searchTerm = document.getElementById('dbSearch')?.value.toLowerCase() || '';
+            const filter = document.getElementById('dbFilter')?.value || 'all';
+            
+            // Simple filter implementation
+            loadDatabaseContent();
+        }
+        
+        function addCustomComponent() {
+            alert('Custom component creation form would open here. This feature allows you to define your own components with custom parameters.');
+        }
+        
+        function importDatabase() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const imported = JSON.parse(event.target.result);
+                        customDatabase = { ...customDatabase, ...imported };
+                        alert('Database imported successfully!');
+                        loadDatabaseContent();
+                    } catch (error) {
+                        alert('Error importing database: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        function exportDatabase() {
+            const dataStr = JSON.stringify(customDatabase, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `custom_component_database_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function compareComponents() {
+            if (components.length < 2) {
+                alert('Please add at least 2 components to compare.');
+                return;
+            }
+            alert('Component comparison view would open here, showing side-by-side specifications and calculations for selected components.');
+        }
+        
+        function generateSpecReport() {
+            if (components.length === 0) {
+                alert('Please add components first.');
+                return;
+            }
+            
+            let report = '═══════════════════════════════════════════════════════════════════════════════\n';
+            report += '                    COMPONENT SPECIFICATION REPORT                               \n';
+            report += '═══════════════════════════════════════════════════════════════════════════════\n\n';
+            report += `Project: ${document.getElementById('projectName').value || 'Unnamed Project'}\n`;
+            report += `Date: ${new Date().toLocaleString()}\n`;
+            report += `System Voltage: ${document.getElementById('systemVoltage').value || 'N/A'} V\n\n`;
+            
+            components.forEach((comp, index) => {
+                report += `\n${index + 1}. ${comp.type.toUpperCase().replace(/_/g, ' ')}\n`;
+                report += '─'.repeat(80) + '\n';
+                Object.keys(comp).forEach(key => {
+                    if (key !== 'type') {
+                        report += `   ${key.padEnd(20)}: ${comp[key]}\n`;
+                    }
+                });
+            });
+            
+            report += '\n═══════════════════════════════════════════════════════════════════════════════\n';
+            report += 'End of Specification Report\n';
+            
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `component_specifications_${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const editModal = document.getElementById('editModal');
+            const dbModal = document.getElementById('databaseModal');
+            if (event.target === editModal) {
+                closeEditModal();
+            }
+            if (event.target === dbModal) {
+                closeDatabaseModal();
+            }
+        }
     </script>
+    
+    <!-- Edit Component Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Component</h2>
+                <button class="close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="editModalBody">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveComponentEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Component Database Modal -->
+    <div id="databaseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Component Database Manager</h2>
+                <button class="close" onclick="closeDatabaseModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="databaseModalBody">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDatabaseModal()">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
