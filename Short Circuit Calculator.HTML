@@ -1273,7 +1273,8 @@
                 } else if (method === 'point-to-point') {
                     calculatePointToPoint(systemVoltage, standard, frequency);
                 }
-                document.getElementById('calcProgress').style.width = '100%';
+                const progressBar = document.getElementById('calcProgress');
+                if (progressBar) progressBar.style.width = '100%';
             }, 500);
         }
         
