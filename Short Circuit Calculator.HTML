@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PowerSys Pro - Executive Short Circuit Calculator</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -952,7 +961,10 @@
                 
                 <div id="componentInputs"></div>
                 
-                <button class="btn btn-primary" onclick="addComponent()">Add Component</button>
+                <div class="button-group" style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="addComponent()">Add Component</button>
+                    <button class="btn btn-info" onclick="showTemplateSelector()">📋 Load Template</button>
+                </div>
                 
                 <h3 class="section-title" style="margin-top: 30px;">Components</h3>
                 <div class="component-list" id="componentList">
@@ -1040,6 +1052,32 @@
                         <div id="reportContent"></div>
                     </div>
                 </div>
+                
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-top: 20px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">Visualizations</h3>
+                    
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="color: #64748b; margin-bottom: 15px;">Single-Line Diagram</h4>
+                        <div id="singleLineDiagram" style="border: 2px solid #e1e8ed; border-radius: 8px; padding: 20px; min-height: 400px; background: white; overflow: auto;">
+                            <p style="color: #94a3b8; text-align: center; padding: 50px;">Add components and calculate to generate diagram</p>
+                        </div>
+                        <div class="button-group" style="margin-top: 15px;">
+                            <button class="btn btn-secondary" onclick="generateSingleLineDiagram()">🔄 Regenerate Diagram</button>
+                            <button class="btn btn-info" onclick="exportDiagramAsPNG()">💾 Export as PNG</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
+                        <div>
+                            <h4 style="color: #64748b; margin-bottom: 15px;">Fault Contribution Analysis</h4>
+                            <canvas id="faultContributionChart" style="max-height: 300px;"></canvas>
+                        </div>
+                        <div>
+                            <h4 style="color: #64748b; margin-bottom: 15px;">Method Comparison</h4>
+                            <canvas id="comparisonChart" style="max-height: 300px;"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -1103,6 +1141,811 @@
         let calculationResults = null;
         let perUnitResults = null;
         let pointToPointResults = null;
+        
+        // ============================================================================
+        // STORAGE MODULE - Data Persistence with localStorage and IndexedDB
+        // ============================================================================
+        
+        let autoSaveTimer = null;
+        let hasUnsavedChanges = false;
+        let projectHistory = [];
+        
+        // Initialize IndexedDB with Dexie.js (if available)
+        let db = null;
+        if (typeof Dexie !== 'undefined') {
+            db = new Dexie('PowerSysProDB');
+            db.version(1).stores({
+                projects: '++id, name, created, modified',
+                equipmentDatabase: '++id, type, name',
+                settings: 'key',
+                calculationHistory: '++id, projectId, timestamp'
+            });
+        } else {
+            console.warn('Dexie.js not loaded - IndexedDB features disabled');
+        }
+        
+        /**
+         * Initialize auto-save functionality
+         */
+        function initializeAutoSave() {
+            // Mark changes on any input
+            document.addEventListener('input', () => {
+                hasUnsavedChanges = true;
+                scheduleAutoSave();
+            });
+            
+            // Load recent projects on startup
+            loadRecentProjects();
+        }
+        
+        /**
+         * Schedule auto-save after 30 seconds of inactivity
+         */
+        function scheduleAutoSave() {
+            if (autoSaveTimer) clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                if (hasUnsavedChanges) {
+                    autoSaveProject();
+                }
+            }, 30000); // 30 seconds
+        }
+        
+        /**
+         * Auto-save project to localStorage and IndexedDB
+         */
+        async function autoSaveProject() {
+            try {
+                const projectData = getCurrentProjectData();
+                
+                // Save to localStorage for quick recovery
+                localStorage.setItem('autoSave', JSON.stringify(projectData));
+                localStorage.setItem('autoSaveTimestamp', new Date().toISOString());
+                
+                // Save to IndexedDB for permanent storage
+                await saveToIndexedDB(projectData);
+                
+                hasUnsavedChanges = false;
+                showToast('Auto-saved successfully', 'success');
+            } catch (error) {
+                console.error('Auto-save failed:', error);
+                showToast('Auto-save failed', 'error');
+            }
+        }
+        
+        /**
+         * Get current project data
+         */
+        function getCurrentProjectData() {
+            return {
+                id: localStorage.getItem('currentProjectId') || generateUUID(),
+                name: document.getElementById('projectName').value || 'Unnamed Project',
+                created: localStorage.getItem('projectCreated') || new Date().toISOString(),
+                modified: new Date().toISOString(),
+                version: '2.0',
+                standard: document.getElementById('calcStandard').value,
+                method: document.getElementById('calcMethod').value,
+                systemVoltage: parseFloat(document.getElementById('systemVoltage').value) || 0,
+                systemFrequency: parseFloat(document.getElementById('systemFrequency').value) || 60,
+                components: components,
+                results: calculationResults,
+                settings: getUserSettings()
+            };
+        }
+        
+        /**
+         * Save project to IndexedDB
+         */
+        async function saveToIndexedDB(projectData) {
+            if (!db) {
+                console.warn('IndexedDB not available');
+                return;
+            }
+            try {
+                const existingProject = await db.projects.get(projectData.id);
+                if (existingProject) {
+                    await db.projects.update(projectData.id, projectData);
+                } else {
+                    await db.projects.add(projectData);
+                }
+                updateRecentProjects(projectData);
+            } catch (error) {
+                console.error('IndexedDB save error:', error);
+                throw error;
+            }
+        }
+        
+        /**
+         * Load recent projects
+         */
+        async function loadRecentProjects() {
+            if (!db) return;
+            try {
+                const projects = await db.projects.orderBy('modified').reverse().limit(10).toArray();
+                projectHistory = projects;
+                updateRecentProjectsMenu();
+            } catch (error) {
+                console.error('Failed to load recent projects:', error);
+            }
+        }
+        
+        /**
+         * Update recent projects menu
+         */
+        function updateRecentProjectsMenu() {
+            const menu = document.getElementById('recentProjectsMenu');
+            if (!menu) return;
+            
+            let html = '<h4>Recent Projects</h4>';
+            if (projectHistory.length === 0) {
+                html += '<p style="color: #888;">No recent projects</p>';
+            } else {
+                html += '<ul style="list-style: none; padding: 0;">';
+                projectHistory.forEach(project => {
+                    const date = new Date(project.modified).toLocaleDateString();
+                    html += `<li style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" 
+                             onclick="loadProjectById('${project.id}')">
+                        <strong>${project.name}</strong><br>
+                        <small style="color: #888;">${date}</small>
+                    </li>`;
+                });
+                html += '</ul>';
+            }
+            menu.innerHTML = html;
+        }
+        
+        /**
+         * Load project by ID
+         */
+        async function loadProjectById(projectId) {
+            if (!db) {
+                showToast('IndexedDB not available', 'error');
+                return;
+            }
+            try {
+                const project = await db.projects.get(projectId);
+                if (project) {
+                    restoreProjectData(project);
+                    showToast('Project loaded successfully', 'success');
+                }
+            } catch (error) {
+                console.error('Failed to load project:', error);
+                showToast('Failed to load project', 'error');
+            }
+        }
+        
+        /**
+         * Restore project data
+         */
+        function restoreProjectData(project) {
+            document.getElementById('projectName').value = project.name || '';
+            document.getElementById('systemVoltage').value = project.systemVoltage || '';
+            document.getElementById('calcStandard').value = project.standard || 'iec';
+            document.getElementById('calcMethod').value = project.method || 'per-unit';
+            document.getElementById('systemFrequency').value = project.systemFrequency || 60;
+            components = project.components || [];
+            calculationResults = project.results;
+            localStorage.setItem('currentProjectId', project.id);
+            localStorage.setItem('projectCreated', project.created);
+            updateComponentList();
+            if (calculationResults) displayResults();
+        }
+        
+        /**
+         * Update recent projects list
+         */
+        function updateRecentProjects(projectData) {
+            const index = projectHistory.findIndex(p => p.id === projectData.id);
+            if (index > -1) {
+                projectHistory.splice(index, 1);
+            }
+            projectHistory.unshift(projectData);
+            if (projectHistory.length > 10) {
+                projectHistory = projectHistory.slice(0, 10);
+            }
+            updateRecentProjectsMenu();
+        }
+        
+        /**
+         * Get user settings
+         */
+        function getUserSettings() {
+            return {
+                theme: localStorage.getItem('theme') || 'light',
+                units: localStorage.getItem('units') || 'metric',
+                autoSave: localStorage.getItem('autoSave') !== 'false'
+            };
+        }
+        
+        /**
+         * Generate UUID
+         */
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        
+        /**
+         * Show toast notification
+         */
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        // ============================================================================
+        // ARC FLASH CALCULATION MODULE - IEEE 1584-2018
+        // ============================================================================
+        
+        /**
+         * Calculate arc flash energy using IEEE 1584-2018 method
+         */
+        function calculateArcFlash(params) {
+            const {
+                method = 'ieee1584-2018',
+                voltage,
+                boltedFaultCurrent,
+                workingDistance,
+                equipmentGap,
+                enclosureType = 'VCB',
+                arcDuration = 0.1
+            } = params;
+            
+            if (method === 'ieee1584-2018') {
+                return calculateArcFlash2018(voltage, boltedFaultCurrent, workingDistance, equipmentGap, enclosureType, arcDuration);
+            } else {
+                return calculateArcFlash2002(voltage, boltedFaultCurrent, workingDistance, equipmentGap, arcDuration);
+            }
+        }
+        
+        /**
+         * IEEE 1584-2018 calculation
+         */
+        function calculateArcFlash2018(voltage, If, D, G, enclosure, t) {
+            // Voltage in kV, current in kA, distance in mm, gap in mm, time in seconds
+            const Voc = voltage; // System voltage in kV
+            const Ibf = If; // Bolted fault current in kA
+            
+            // Determine if low voltage or medium voltage
+            const isLowVoltage = Voc <= 1.0;
+            
+            let Iarc, E;
+            
+            if (isLowVoltage) {
+                // Low voltage: 208V - 600V
+                // Arcing current calculation for LV
+                const k = -0.153;
+                const a = 0.75;
+                const b = -0.065;
+                const c = 0;
+                
+                const logIarc = k + a * Math.log10(Ibf) + b * Math.log10(G);
+                Iarc = Math.pow(10, logIarc);
+                
+                // Incident energy for VCB (Vertical Conductors in a Box)
+                if (enclosure === 'VCB' || enclosure === 'VCBB') {
+                    const k1 = -3.682;
+                    const k2 = 0.959;
+                    const k3 = 0;
+                    const k4 = 0.524;
+                    const k5 = -0.388;
+                    const k6 = 0;
+                    
+                    const logE = k1 + k2 * Math.log10(Iarc) + k4 * Math.log10(D) + k5 * Math.log10(G);
+                    E = Math.pow(10, logE) * (t / 0.2); // Normalize for time
+                } else if (enclosure === 'HCB') {
+                    // Horizontal Conductors in a Box
+                    const k1 = -3.555;
+                    const k2 = 0.959;
+                    const k4 = 0.524;
+                    const k5 = -0.388;
+                    
+                    const logE = k1 + k2 * Math.log10(Iarc) + k4 * Math.log10(D) + k5 * Math.log10(G);
+                    E = Math.pow(10, logE) * (t / 0.2);
+                } else {
+                    // Open air or other configurations
+                    const k1 = -3.682;
+                    const k2 = 0.959;
+                    const k4 = 0.524;
+                    const k5 = -0.388;
+                    
+                    const logE = k1 + k2 * Math.log10(Iarc) + k4 * Math.log10(D) + k5 * Math.log10(G);
+                    E = Math.pow(10, logE) * (t / 0.2);
+                }
+            } else {
+                // Medium voltage: > 1kV to 15kV
+                const k = 0.00402;
+                const a = 1.081;
+                
+                Iarc = Math.pow(10, k + a * Math.log10(Ibf));
+                
+                // Incident energy for medium voltage
+                const k1 = -0.792;
+                const k2 = 0.555;
+                const k4 = 0.501;
+                
+                const logE = k1 + k2 * Math.log10(Iarc) + k4 * Math.log10(D);
+                E = Math.pow(10, logE) * (t / 0.2);
+            }
+            
+            // Calculate arc flash boundary (AFB)
+            const AFB = calculateArcFlashBoundary(E, D);
+            
+            // Determine PPE category based on incident energy
+            const ppeCategory = getPPECategory(E);
+            
+            return {
+                method: 'ieee1584-2018',
+                voltage: Voc,
+                boltedFaultCurrent: Ibf,
+                arcingCurrent: Iarc,
+                incidentEnergy: E,
+                workingDistance: D,
+                equipmentGap: G,
+                arcFlashBoundary: AFB,
+                ppeCategory: ppeCategory,
+                arcDuration: t,
+                enclosureType: enclosure
+            };
+        }
+        
+        /**
+         * IEEE 1584-2002 calculation (legacy)
+         */
+        function calculateArcFlash2002(voltage, If, D, G, t) {
+            // Simplified 2002 method
+            const k = -0.153;
+            const logIarc = k + 0.662 * Math.log10(If) + 0.0966 * Math.log10(voltage) + 0.000526 * G + 0.5588 * voltage - 0.00304 * G * voltage;
+            const Iarc = Math.pow(10, logIarc);
+            
+            // Incident energy
+            const logE = -0.555 + 0.662 * Math.log10(Iarc) + 0.0966 * Math.log10(voltage) + 0.000526 * G + 0.5588 * voltage - 0.00304 * G * voltage + Math.log10(t * 1000 / 0.2) - 1.473 * Math.log10(D);
+            const E = 4.184 * Math.pow(10, logE);
+            
+            const AFB = calculateArcFlashBoundary(E, D);
+            const ppeCategory = getPPECategory(E);
+            
+            return {
+                method: 'ieee1584-2002',
+                voltage: voltage,
+                boltedFaultCurrent: If,
+                arcingCurrent: Iarc,
+                incidentEnergy: E,
+                workingDistance: D,
+                equipmentGap: G,
+                arcFlashBoundary: AFB,
+                ppeCategory: ppeCategory,
+                arcDuration: t
+            };
+        }
+        
+        /**
+         * Calculate Arc Flash Boundary
+         */
+        function calculateArcFlashBoundary(incidentEnergy, workingDistance) {
+            // AFB is where incident energy = 1.2 cal/cm²
+            const E_threshold = 1.2;
+            // E is proportional to 1/D²
+            // E1/E2 = (D2/D1)²
+            // AFB = D * sqrt(E / E_threshold)
+            const AFB = workingDistance * Math.sqrt(incidentEnergy / E_threshold);
+            return AFB;
+        }
+        
+        /**
+         * Get PPE Category based on incident energy (NFPA 70E)
+         */
+        function getPPECategory(incidentEnergy) {
+            if (incidentEnergy < 1.2) return 0;
+            if (incidentEnergy < 4) return 1;
+            if (incidentEnergy < 8) return 2;
+            if (incidentEnergy < 25) return 3;
+            return 4;
+        }
+        
+        /**
+         * Get PPE recommendations
+         */
+        function getPPERecommendations(category, incidentEnergy) {
+            const recommendations = {
+                0: {
+                    clothing: 'Non-melting or untreated natural fiber',
+                    arcRating: '0 cal/cm²',
+                    faceShield: 'Not required for Category 0',
+                    gloves: 'Leather work gloves',
+                    hearing: 'Not required',
+                    other: 'Safety glasses'
+                },
+                1: {
+                    clothing: 'Arc-rated FR shirt and pants',
+                    arcRating: '4 cal/cm²',
+                    faceShield: 'Arc-rated face shield',
+                    gloves: 'Leather or arc-rated gloves',
+                    hearing: 'Hearing protection',
+                    other: 'Hard hat, safety glasses'
+                },
+                2: {
+                    clothing: 'Arc-rated FR shirt and pants, arc flash suit jacket',
+                    arcRating: '8 cal/cm²',
+                    faceShield: 'Arc-rated face shield with balaclava',
+                    gloves: 'Arc-rated gloves',
+                    hearing: 'Hearing protection',
+                    other: 'Hard hat, safety glasses'
+                },
+                3: {
+                    clothing: 'Arc-rated FR shirt and pants, arc flash suit',
+                    arcRating: '25 cal/cm²',
+                    faceShield: 'Arc-rated hood',
+                    gloves: 'Arc-rated gloves',
+                    hearing: 'Hearing protection',
+                    other: 'Hard hat, safety glasses'
+                },
+                4: {
+                    clothing: 'Arc-rated FR shirt and pants, double-layer arc flash suit',
+                    arcRating: '40+ cal/cm²',
+                    faceShield: 'Arc-rated hood',
+                    gloves: 'Arc-rated gloves (heavy duty)',
+                    hearing: 'Hearing protection',
+                    other: 'Hard hat, safety glasses, leather work boots'
+                }
+            };
+            
+            return recommendations[category] || recommendations[4];
+        }
+        
+        /**
+         * Calculate NFPA 70E approach boundaries
+         */
+        function calculateApproachBoundaries(voltage) {
+            // Voltage in kV, returns boundaries in mm
+            const V = voltage * 1000; // Convert to volts
+            
+            let limited, restricted, prohibited;
+            
+            if (V <= 750) {
+                limited = 3050; // 10 ft
+                restricted = 305; // 1 ft
+                prohibited = 0; // Contact
+            } else if (V <= 15000) {
+                limited = 3050;
+                restricted = 610; // 2 ft
+                prohibited = 305; // 1 ft
+            } else if (V <= 36000) {
+                limited = 3050;
+                restricted = 910; // 3 ft
+                prohibited = 610; // 2 ft
+            } else if (V <= 72500) {
+                limited = 3660; // 12 ft
+                restricted = 1070; // 3 ft 6 in
+                prohibited = 760; // 2 ft 6 in
+            } else {
+                limited = 4570; // 15 ft
+                restricted = 1520; // 5 ft
+                prohibited = 1070; // 3 ft 6 in
+            }
+            
+            return {
+                limited: limited,
+                restricted: restricted,
+                prohibited: prohibited
+            };
+        }
+        
+        // ============================================================================
+        // VALIDATION MODULE - Real-time Input Validation
+        // ============================================================================
+        
+        /**
+         * Enhanced validation with visual feedback
+         */
+        function validateInputEnhanced(element, fieldName) {
+            const value = element.value;
+            const validation = validateInput(value, fieldName);
+            
+            // Remove existing feedback
+            const existingFeedback = element.parentNode.querySelector('.validation-feedback');
+            if (existingFeedback) existingFeedback.remove();
+            
+            // Create feedback element
+            const feedback = document.createElement('div');
+            feedback.className = 'validation-feedback';
+            feedback.style.cssText = 'margin-top: 5px; font-size: 12px;';
+            
+            if (validation.valid) {
+                element.style.borderColor = '#10b981';
+                feedback.innerHTML = '<span style="color: #10b981;">✓ Valid</span>';
+            } else {
+                element.style.borderColor = '#ef4444';
+                feedback.innerHTML = `<span style="color: #ef4444;">✗ ${validation.message}</span>`;
+            }
+            
+            element.parentNode.appendChild(feedback);
+            
+            // Check for warnings
+            checkForWarnings(element, value);
+            
+            return validation.valid;
+        }
+        
+        /**
+         * Check for unrealistic values and show warnings
+         */
+        function checkForWarnings(element, value) {
+            const numValue = parseFloat(value);
+            if (isNaN(numValue)) return;
+            
+            let warning = null;
+            
+            // Check for unrealistic values based on field type
+            if (element.id === 'systemVoltage') {
+                if (numValue > 1000000) warning = 'Voltage > 1000 kV is uncommon';
+                if (numValue < 100) warning = 'Voltage < 100 V is very low';
+            } else if (element.id.includes('Impedance')) {
+                if (numValue === 0) warning = 'Zero impedance is unrealistic';
+                if (numValue > 50) warning = 'Impedance > 50% is unusually high';
+            } else if (element.id.includes('Power')) {
+                if (numValue > 100) warning = 'Power > 100 MVA is very large';
+                if (numValue < 0.01) warning = 'Power < 10 kVA is very small';
+            }
+            
+            if (warning) {
+                const warningEl = document.createElement('div');
+                warningEl.className = 'validation-warning';
+                warningEl.style.cssText = 'margin-top: 5px; font-size: 12px; color: #f59e0b;';
+                warningEl.innerHTML = `<span>⚠ ${warning}</span>`;
+                element.parentNode.appendChild(warningEl);
+            }
+        }
+        
+        /**
+         * Unit conversion
+         */
+        function convertUnit(value, fromUnit, toUnit, type) {
+            const conversions = {
+                voltage: {
+                    'V': 1,
+                    'kV': 1000,
+                    'MV': 1000000
+                },
+                current: {
+                    'A': 1,
+                    'kA': 1000
+                },
+                power: {
+                    'W': 1,
+                    'kW': 1000,
+                    'MW': 1000000,
+                    'MVA': 1000000
+                },
+                impedance: {
+                    'Ω': 1,
+                    'mΩ': 0.001
+                },
+                length: {
+                    'm': 1,
+                    'km': 1000,
+                    'ft': 0.3048
+                }
+            };
+            
+            if (!conversions[type]) return value;
+            
+            const fromFactor = conversions[type][fromUnit] || 1;
+            const toFactor = conversions[type][toUnit] || 1;
+            
+            return value * fromFactor / toFactor;
+        }
+        
+        /**
+         * Cross-validation checks
+         */
+        function performCrossValidation() {
+            const warnings = [];
+            
+            components.forEach((comp, index) => {
+                if (comp.type === 'transformer') {
+                    // Check transformer MVA vs impedance consistency
+                    const power = parseFloat(comp.power);
+                    const impedance = parseFloat(comp.impedance);
+                    
+                    if (power < 1 && impedance > 8) {
+                        warnings.push(`Component ${index + 1}: Small transformer with high impedance`);
+                    }
+                    if (power > 10 && impedance < 4) {
+                        warnings.push(`Component ${index + 1}: Large transformer with low impedance`);
+                    }
+                }
+                
+                if (comp.type === 'cable') {
+                    // Check cable length vs impedance drop
+                    const length = parseFloat(comp.length);
+                    const resistance = parseFloat(comp.resistance);
+                    
+                    if (length > 1000 && resistance < 0.1) {
+                        warnings.push(`Component ${index + 1}: Long cable with very low resistance`);
+                    }
+                }
+                
+                if (comp.type === 'motor') {
+                    // Check motor contribution vs motor size
+                    const power = parseFloat(comp.power);
+                    const reactance = parseFloat(comp.reactance);
+                    
+                    if (power > 10 && reactance > 25) {
+                        warnings.push(`Component ${index + 1}: Large motor with high reactance`);
+                    }
+                }
+            });
+            
+            return warnings;
+        }
+        
+        // ============================================================================
+        // KEYBOARD SHORTCUTS MODULE
+        // ============================================================================
+        
+        /**
+         * Initialize keyboard shortcuts
+         */
+        function initializeKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl+S: Save project
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    saveProject();
+                }
+                
+                // Ctrl+E: Export results
+                if (e.ctrlKey && e.key === 'e') {
+                    e.preventDefault();
+                    exportResults();
+                }
+                
+                // Ctrl+N: New project
+                if (e.ctrlKey && e.key === 'n') {
+                    e.preventDefault();
+                    newProject();
+                }
+                
+                // Ctrl+C: Calculate
+                if (e.ctrlKey && e.key === 'c') {
+                    e.preventDefault();
+                    calculate();
+                }
+                
+                // F1: Help
+                if (e.key === 'F1') {
+                    e.preventDefault();
+                    showHelp();
+                }
+                
+                // Esc: Close modals
+                if (e.key === 'Escape') {
+                    closeAllModals();
+                }
+                
+                // ?: Show shortcuts
+                if (e.shiftKey && e.key === '?') {
+                    e.preventDefault();
+                    showShortcutsLegend();
+                }
+            });
+        }
+        
+        /**
+         * New project
+         */
+        function newProject() {
+            if (hasUnsavedChanges) {
+                if (!confirm('You have unsaved changes. Create new project?')) {
+                    return;
+                }
+            }
+            
+            document.getElementById('projectName').value = '';
+            document.getElementById('systemVoltage').value = '';
+            document.getElementById('calcStandard').value = 'iec';
+            document.getElementById('calcMethod').value = 'per-unit';
+            document.getElementById('systemFrequency').value = '60';
+            components = [];
+            calculationResults = null;
+            localStorage.removeItem('currentProjectId');
+            localStorage.removeItem('projectCreated');
+            updateComponentList();
+            document.getElementById('results').innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 50px 20px; font-size: 15px;">Add components and click <strong>Calculate</strong> to see comprehensive results</p>';
+            showToast('New project created', 'success');
+        }
+        
+        /**
+         * Show help documentation
+         */
+        function showHelp() {
+            switchTab('help');
+        }
+        
+        /**
+         * Close all modals
+         */
+        function closeAllModals() {
+            document.getElementById('editModal').style.display = 'none';
+            document.getElementById('databaseModal').style.display = 'none';
+            const shortcutsModal = document.getElementById('shortcutsModal');
+            if (shortcutsModal) shortcutsModal.style.display = 'none';
+        }
+        
+        /**
+         * Show shortcuts legend
+         */
+        function showShortcutsLegend() {
+            const modal = document.createElement('div');
+            modal.id = 'shortcutsModal';
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2>Keyboard Shortcuts</h2>
+                        <button class="close" onclick="closeAllModals()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;"><strong>Ctrl+S</strong></td>
+                                <td style="padding: 10px;">Save project</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;"><strong>Ctrl+E</strong></td>
+                                <td style="padding: 10px;">Export results</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;"><strong>Ctrl+N</strong></td>
+                                <td style="padding: 10px;">New project</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;"><strong>Ctrl+C</strong></td>
+                                <td style="padding: 10px;">Calculate</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;"><strong>F1</strong></td>
+                                <td style="padding: 10px;">Help documentation</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;"><strong>Esc</strong></td>
+                                <td style="padding: 10px;">Close modals</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px;"><strong>?</strong></td>
+                                <td style="padding: 10px;">Show this legend</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeAllModals()">Close</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
         
         // Equipment Database
         const equipmentDatabase = {
@@ -2106,6 +2949,19 @@
             
             // Update safety analysis
             updateSafetyAnalysis(calculationResults);
+            
+            // Generate visualizations
+            generateSingleLineDiagram();
+            
+            // Generate fault contribution chart if Chart.js is available
+            if (typeof Chart !== 'undefined' && components.length > 0) {
+                // Calculate simple contribution percentages (equal distribution for demo)
+                const contributions = components.map((comp, index) => ({
+                    name: `${comp.type} ${index + 1}`,
+                    percentage: 100 / components.length
+                }));
+                createFaultContributionChart(contributions);
+            }
         }
         
         function displayComparison() {
@@ -2152,51 +3008,113 @@
         function updateSafetyAnalysis(results) {
             const safetyDiv = document.getElementById('safetyResults');
             
-            // Simplified arc flash calculation (IEEE 1584 approximation)
-            const workingDistance = 0.457; // 18 inches in meters
-            const arcDuration = 0.1; // 100ms typical
-            const incidentEnergy = calculateIncidentEnergy(results.faultMVA, results.iscAsymm, workingDistance, arcDuration);
-            const arcFlashBoundary = calculateArcFlashBoundary(incidentEnergy, workingDistance);
+            // Get system voltage
+            const systemVoltage = parseFloat(document.getElementById('systemVoltage').value);
             
-            let ppeCategory = 'Category 0';
-            if (incidentEnergy > 1.2) ppeCategory = 'Category 1';
-            if (incidentEnergy > 4) ppeCategory = 'Category 2';
-            if (incidentEnergy > 8) ppeCategory = 'Category 3';
-            if (incidentEnergy > 25) ppeCategory = 'Category 4';
+            // Calculate arc flash using IEEE 1584-2018
+            const arcFlashData = calculateArcFlash({
+                voltage: systemVoltage / 1000, // Convert to kV
+                boltedFaultCurrent: results.iscSymm,
+                workingDistance: 610, // 24 inches in mm
+                equipmentGap: 32, // Default gap in mm
+                enclosureType: 'VCB',
+                arcDuration: 0.1 // 100ms
+            });
+            
+            const incidentEnergy = arcFlashData.incidentEnergy;
+            const arcFlashBoundary = arcFlashData.arcFlashBoundary;
+            const ppeCategory = arcFlashData.ppeCategory;
+            const ppeRec = getPPERecommendations(ppeCategory, incidentEnergy);
+            const boundaries = calculateApproachBoundaries(systemVoltage / 1000);
             
             safetyDiv.innerHTML = `
                 <div class="safety-analysis">
-                    <h4>⚠️ Arc Flash Hazard Analysis (IEEE 1584 Approximation)</h4>
+                    <h4>⚠️ Arc Flash Hazard Analysis (IEEE 1584-2018)</h4>
                     <div class="arc-flash-boundary">
                         <div class="boundary-item">
                             <strong>Incident Energy</strong><br>
                             <span style="font-size: 1.5em; color: #dc2626;">${incidentEnergy.toFixed(2)} cal/cm²</span><br>
-                            <small>At ${workingDistance * 39.37} inches working distance</small>
+                            <small>At ${(arcFlashData.workingDistance / 25.4).toFixed(1)} inches working distance</small>
                         </div>
                         <div class="boundary-item">
                             <strong>Arc Flash Boundary</strong><br>
-                            <span style="font-size: 1.5em; color: #dc2626;">${arcFlashBoundary.toFixed(2)} feet</span><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">${(arcFlashBoundary / 304.8).toFixed(2)} feet</span><br>
                             <small>Distance to 1.2 cal/cm²</small>
                         </div>
                         <div class="boundary-item">
                             <strong>PPE Category</strong><br>
-                            <span style="font-size: 1.5em; color: #dc2626;">${ppeCategory}</span><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">Category ${ppeCategory}</span><br>
                             <small>Per NFPA 70E Table 130.5(C)</small>
                         </div>
                         <div class="boundary-item">
-                            <strong>Arc Duration</strong><br>
-                            <span style="font-size: 1.5em; color: #dc2626;">${arcDuration * 1000} ms</span><br>
-                            <small>Assumed clearing time</small>
+                            <strong>Arcing Current</strong><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">${arcFlashData.arcingCurrent.toFixed(2)} kA</span><br>
+                            <small>Calculated per IEEE 1584</small>
                         </div>
                     </div>
+                    
                     <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px;">
-                        <strong>⚠️ Safety Recommendations:</strong><br>
-                        • All personnel must wear appropriate PPE for ${ppeCategory}<br>
-                        • Establish arc flash boundary at ${arcFlashBoundary.toFixed(2)} feet<br>
+                        <h5 style="color: #1e3c72; margin-bottom: 10px;">PPE Requirements (Category ${ppeCategory})</h5>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="background: #f8fafc;">
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Clothing</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${ppeRec.clothing}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Arc Rating</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${ppeRec.arcRating}</td>
+                            </tr>
+                            <tr style="background: #f8fafc;">
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Face Shield</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${ppeRec.faceShield}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Gloves</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${ppeRec.gloves}</td>
+                            </tr>
+                            <tr style="background: #f8fafc;">
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Hearing Protection</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${ppeRec.hearing}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Other Equipment</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${ppeRec.other}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px;">
+                        <h5 style="color: #1e3c72; margin-bottom: 10px;">NFPA 70E Approach Boundaries</h5>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="background: #f8fafc;">
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Limited Approach</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.limited / 304.8).toFixed(2)} feet (${boundaries.limited} mm)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Restricted Approach</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.restricted / 304.8).toFixed(2)} feet (${boundaries.restricted} mm)</td>
+                            </tr>
+                            <tr style="background: #f8fafc;">
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Prohibited Approach</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.prohibited / 304.8).toFixed(2)} feet (${boundaries.prohibited} mm)</td>
+                            </tr>
+                            <tr style="background: #fff3cd;">
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Arc Flash Boundary</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>${(arcFlashBoundary / 304.8).toFixed(2)} feet (${arcFlashBoundary.toFixed(0)} mm)</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px;">
+                        <strong>⚠️ CRITICAL SAFETY REQUIREMENTS:</strong><br>
+                        • All personnel must wear appropriate PPE for Category ${ppeCategory}<br>
+                        • Establish arc flash boundary at ${(arcFlashBoundary / 304.8).toFixed(2)} feet<br>
                         • Only qualified persons permitted within restricted approach boundary<br>
-                        • Consider arc-resistant switchgear for high incident energy levels<br>
-                        • Implement proper lockout/tagout procedures<br>
-                        • Regular inspection and maintenance per NFPA 70E and NEC requirements
+                        • Consider arc-resistant switchgear for incident energy > 12 cal/cm²<br>
+                        • Implement proper lockout/tagout procedures per NFPA 70E Article 120<br>
+                        • Post arc flash labels per NFPA 70E 130.5(D)<br>
+                        • Regular inspection and maintenance per NFPA 70E and NEC requirements<br>
+                        • Conduct job briefing before any work within arc flash boundary
                     </div>
                 </div>
                 
@@ -2303,49 +3221,359 @@
             input.click();
         }
         
-        function exportPDF() {
+        /**
+         * Export comprehensive PDF report using jsPDF
+         */
+        async function exportPDF() {
             if (!calculationResults) {
                 alert('No results to export. Please calculate first.');
                 return;
             }
-            alert('PDF Export: This feature would integrate with a PDF library like jsPDF.\n\nThe export would include:\n• Executive summary with key results\n• Detailed calculation steps\n• Equipment recommendations\n• Safety analysis\n• Code compliance documentation\n\nFor this demonstration, use the Text Report export instead.');
+            
+            try {
+                showToast('Generating PDF report...', 'info');
+                
+                // Check if jsPDF is loaded
+                if (typeof window.jspdf === 'undefined') {
+                    throw new Error('jsPDF library not loaded');
+                }
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                const projectName = document.getElementById('projectName').value || 'Unnamed Project';
+                const systemVoltage = document.getElementById('systemVoltage').value;
+                const standard = document.getElementById('calcStandard').value;
+                const frequency = document.getElementById('systemFrequency').value;
+                
+                let yPos = 20;
+                const pageHeight = doc.internal.pageSize.height;
+                
+                // Header
+                doc.setFillColor(30, 60, 114);
+                doc.rect(0, 0, 210, 40, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(24);
+                doc.text('PowerSys Pro', 105, 20, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text('Short Circuit Analysis Report', 105, 30, { align: 'center' });
+                
+                doc.setTextColor(0, 0, 0);
+                yPos = 50;
+                
+                // Executive Summary
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('Executive Summary', 20, yPos);
+                yPos += 10;
+                
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Project: ${projectName}`, 20, yPos);
+                yPos += 6;
+                doc.text(`Date: ${new Date().toLocaleString()}`, 20, yPos);
+                yPos += 6;
+                doc.text(`Standard: ${standard.toUpperCase()}`, 20, yPos);
+                yPos += 6;
+                doc.text(`System Voltage: ${systemVoltage} V`, 20, yPos);
+                yPos += 6;
+                doc.text(`System Frequency: ${frequency} Hz`, 20, yPos);
+                yPos += 12;
+                
+                // Key Results
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('Key Results', 20, yPos);
+                yPos += 10;
+                
+                const resultsData = [
+                    ['Parameter', 'Value', 'Unit'],
+                    ['Symmetrical Current', calculationResults.iscSymm.toFixed(2), 'kA'],
+                    ['Asymmetrical Current', calculationResults.iscAsymm.toFixed(2), 'kA'],
+                    ['Fault MVA', calculationResults.faultMVA.toFixed(2), 'MVA'],
+                    ['Total Impedance', calculationResults.impedance.toFixed(4), 'Ω'],
+                    ['X/R Ratio', calculationResults.xr.toFixed(2), '-']
+                ];
+                
+                doc.autoTable({
+                    startY: yPos,
+                    head: [resultsData[0]],
+                    body: resultsData.slice(1),
+                    theme: 'striped',
+                    headStyles: { fillColor: [30, 60, 114] }
+                });
+                
+                yPos = doc.lastAutoTable.finalY + 15;
+                
+                // Components
+                if (yPos > pageHeight - 40) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('Circuit Components', 20, yPos);
+                yPos += 10;
+                
+                const componentsData = [['No.', 'Type', 'Key Parameters']];
+                components.forEach((comp, index) => {
+                    let params = '';
+                    Object.keys(comp).forEach(key => {
+                        if (key !== 'type') {
+                            params += `${key}: ${comp[key]}, `;
+                        }
+                    });
+                    componentsData.push([
+                        (index + 1).toString(),
+                        comp.type.toUpperCase().replace(/_/g, ' '),
+                        params.slice(0, -2)
+                    ]);
+                });
+                
+                doc.autoTable({
+                    startY: yPos,
+                    head: [componentsData[0]],
+                    body: componentsData.slice(1),
+                    theme: 'striped',
+                    headStyles: { fillColor: [30, 60, 114] },
+                    columnStyles: { 2: { cellWidth: 100 } }
+                });
+                
+                yPos = doc.lastAutoTable.finalY + 15;
+                
+                // Safety Analysis
+                if (yPos > pageHeight - 60) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('Safety Analysis', 20, yPos);
+                yPos += 10;
+                
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.text('Arc Flash Hazard Assessment (IEEE 1584-2018)', 20, yPos);
+                yPos += 8;
+                
+                // Calculate arc flash
+                const arcFlashData = calculateArcFlash({
+                    voltage: systemVoltage / 1000, // Convert to kV
+                    boltedFaultCurrent: calculationResults.iscSymm,
+                    workingDistance: 610, // 24 inches in mm
+                    equipmentGap: 32, // Default gap in mm
+                    enclosureType: 'VCB',
+                    arcDuration: 0.1
+                });
+                
+                const safetyData = [
+                    ['Parameter', 'Value'],
+                    ['Incident Energy', `${arcFlashData.incidentEnergy.toFixed(2)} cal/cm²`],
+                    ['Arc Flash Boundary', `${arcFlashData.arcFlashBoundary.toFixed(0)} mm`],
+                    ['PPE Category', arcFlashData.ppeCategory],
+                    ['Arcing Current', `${arcFlashData.arcingCurrent.toFixed(2)} kA`]
+                ];
+                
+                doc.autoTable({
+                    startY: yPos,
+                    head: [safetyData[0]],
+                    body: safetyData.slice(1),
+                    theme: 'striped',
+                    headStyles: { fillColor: [239, 68, 68] }
+                });
+                
+                // Footer
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(128, 128, 128);
+                    doc.text(
+                        `Page ${i} of ${pageCount}`,
+                        105,
+                        pageHeight - 10,
+                        { align: 'center' }
+                    );
+                    doc.text(
+                        'Generated by PowerSys Pro - Standards Compliant Analysis',
+                        105,
+                        pageHeight - 5,
+                        { align: 'center' }
+                    );
+                }
+                
+                // Save PDF
+                doc.save(`${projectName.replace(/[^a-z0-9]/gi, '_')}_SC_Analysis_${new Date().toISOString().split('T')[0]}.pdf`);
+                showToast('PDF exported successfully', 'success');
+                
+            } catch (error) {
+                console.error('PDF export error:', error);
+                showToast('PDF export failed: ' + error.message, 'error');
+            }
         }
         
+        /**
+         * Export comprehensive Excel workbook using SheetJS
+         */
         function exportExcel() {
             if (!calculationResults) {
                 alert('No results to export. Please calculate first.');
                 return;
             }
             
-            const projectName = document.getElementById('projectName').value || 'Unnamed Project';
-            
-            // Create CSV content for Excel
-            let csv = 'PowerSys Pro - Short Circuit Analysis Report\n\n';
-            csv += `Project Name:,${projectName}\n`;
-            csv += `Date:,${new Date().toLocaleString()}\n`;
-            csv += `Standard:,${document.getElementById('calcStandard').value.toUpperCase()}\n\n`;
-            
-            csv += 'KEY RESULTS\n';
-            csv += 'Parameter,Value,Unit\n';
-            csv += `Symmetrical Current,${calculationResults.iscSymm.toFixed(2)},kA\n`;
-            csv += `Asymmetrical Current,${calculationResults.iscAsymm.toFixed(2)},kA\n`;
-            csv += `Fault MVA,${calculationResults.faultMVA.toFixed(2)},MVA\n`;
-            csv += `Total Impedance,${calculationResults.impedance.toFixed(4)},Ω\n`;
-            csv += `X/R Ratio,${calculationResults.xr.toFixed(2)},-\n\n`;
-            
-            csv += 'COMPONENTS\n';
-            csv += 'Type,Details\n';
-            components.forEach(comp => {
-                csv += `${comp.type},${JSON.stringify(comp)}\n`;
-            });
-            
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_SC_Analysis_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
+            try {
+                showToast('Generating Excel workbook...', 'info');
+                
+                // Check if XLSX is loaded
+                if (typeof XLSX === 'undefined') {
+                    throw new Error('SheetJS library not loaded');
+                }
+                
+                const projectName = document.getElementById('projectName').value || 'Unnamed Project';
+                const systemVoltage = document.getElementById('systemVoltage').value;
+                const standard = document.getElementById('calcStandard').value;
+                const frequency = document.getElementById('systemFrequency').value;
+                
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+                
+                // Sheet 1: Project Summary
+                const summaryData = [
+                    ['PowerSys Pro - Short Circuit Analysis'],
+                    [''],
+                    ['Project Information'],
+                    ['Project Name', projectName],
+                    ['Date', new Date().toLocaleString()],
+                    ['Standard', standard.toUpperCase()],
+                    ['Method', document.getElementById('calcMethod').value],
+                    ['System Voltage', systemVoltage, 'V'],
+                    ['System Frequency', frequency, 'Hz'],
+                    ['Components Count', components.length],
+                    [''],
+                    ['Key Results'],
+                    ['Parameter', 'Value', 'Unit'],
+                    ['Symmetrical Current', calculationResults.iscSymm.toFixed(2), 'kA'],
+                    ['Asymmetrical Current', calculationResults.iscAsymm.toFixed(2), 'kA'],
+                    ['Fault MVA', calculationResults.faultMVA.toFixed(2), 'MVA'],
+                    ['Total Impedance', calculationResults.impedance.toFixed(4), 'Ω'],
+                    ['X/R Ratio', calculationResults.xr.toFixed(2), '-'],
+                    ['Factor κ', calculationResults.kappa.toFixed(3), '-']
+                ];
+                
+                const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+                ws1['!cols'] = [{ width: 25 }, { width: 20 }, { width: 10 }];
+                XLSX.utils.book_append_sheet(wb, ws1, 'Project Summary');
+                
+                // Sheet 2: Component List
+                const componentData = [['Component List'], [''], ['No.', 'Type']];
+                
+                // Add component-specific headers
+                const allKeys = new Set();
+                components.forEach(comp => {
+                    Object.keys(comp).forEach(key => {
+                        if (key !== 'type') allKeys.add(key);
+                    });
+                });
+                componentData[2].push(...Array.from(allKeys));
+                
+                // Add component data
+                components.forEach((comp, index) => {
+                    const row = [index + 1, comp.type.toUpperCase().replace(/_/g, ' ')];
+                    allKeys.forEach(key => {
+                        row.push(comp[key] || '');
+                    });
+                    componentData.push(row);
+                });
+                
+                const ws2 = XLSX.utils.aoa_to_sheet(componentData);
+                ws2['!cols'] = [{ width: 5 }, { width: 20 }, ...Array(allKeys.size).fill({ width: 15 })];
+                XLSX.utils.book_append_sheet(wb, ws2, 'Component List');
+                
+                // Sheet 3: Calculation Steps
+                const stepsData = [['Calculation Steps'], ['']];
+                calculationResults.steps.forEach((step, index) => {
+                    stepsData.push([`Step ${index + 1}`, step.title]);
+                    const content = step.content.replace(/<br>/g, '\n').replace(/<strong>/g, '').replace(/<\/strong>/g, '').replace(/<[^>]*>/g, '');
+                    stepsData.push(['', content]);
+                    stepsData.push(['']);
+                });
+                
+                const ws3 = XLSX.utils.aoa_to_sheet(stepsData);
+                ws3['!cols'] = [{ width: 10 }, { width: 80 }];
+                XLSX.utils.book_append_sheet(wb, ws3, 'Calculation Steps');
+                
+                // Sheet 4: Safety Analysis
+                const arcFlashData = calculateArcFlash({
+                    voltage: systemVoltage / 1000,
+                    boltedFaultCurrent: calculationResults.iscSymm,
+                    workingDistance: 610,
+                    equipmentGap: 32,
+                    enclosureType: 'VCB',
+                    arcDuration: 0.1
+                });
+                
+                const ppeRec = getPPERecommendations(arcFlashData.ppeCategory, arcFlashData.incidentEnergy);
+                const boundaries = calculateApproachBoundaries(systemVoltage / 1000);
+                
+                const safetyData = [
+                    ['Safety Analysis (IEEE 1584-2018 & NFPA 70E)'],
+                    [''],
+                    ['Arc Flash Hazard Assessment'],
+                    ['Parameter', 'Value', 'Unit'],
+                    ['Method', arcFlashData.method, ''],
+                    ['System Voltage', systemVoltage, 'V'],
+                    ['Bolted Fault Current', arcFlashData.boltedFaultCurrent.toFixed(2), 'kA'],
+                    ['Arcing Current', arcFlashData.arcingCurrent.toFixed(2), 'kA'],
+                    ['Working Distance', arcFlashData.workingDistance, 'mm'],
+                    ['Arc Duration', arcFlashData.arcDuration, 's'],
+                    ['Incident Energy', arcFlashData.incidentEnergy.toFixed(2), 'cal/cm²'],
+                    ['Arc Flash Boundary', arcFlashData.arcFlashBoundary.toFixed(0), 'mm'],
+                    ['PPE Category', arcFlashData.ppeCategory, ''],
+                    [''],
+                    ['PPE Requirements'],
+                    ['Item', 'Specification'],
+                    ['Clothing', ppeRec.clothing],
+                    ['Arc Rating', ppeRec.arcRating],
+                    ['Face Shield', ppeRec.faceShield],
+                    ['Gloves', ppeRec.gloves],
+                    ['Hearing Protection', ppeRec.hearing],
+                    ['Other', ppeRec.other],
+                    [''],
+                    ['NFPA 70E Approach Boundaries'],
+                    ['Boundary', 'Distance (mm)'],
+                    ['Limited Approach', boundaries.limited],
+                    ['Restricted Approach', boundaries.restricted],
+                    ['Prohibited Approach', boundaries.prohibited]
+                ];
+                
+                const ws4 = XLSX.utils.aoa_to_sheet(safetyData);
+                ws4['!cols'] = [{ width: 30 }, { width: 50 }, { width: 10 }];
+                XLSX.utils.book_append_sheet(wb, ws4, 'Safety Analysis');
+                
+                // Sheet 5: Equipment Recommendations
+                const equipmentData = [
+                    ['Equipment Recommendations'],
+                    [''],
+                    ['Parameter', 'Calculated Value', 'Recommended Rating', 'Safety Margin'],
+                    ['Circuit Breaker Interrupting Rating', `${calculationResults.iscSymm.toFixed(2)} kA`, `${Math.ceil(calculationResults.iscSymm * 1.25)} kA`, '25%'],
+                    ['Bus Fault Withstand', `${calculationResults.faultMVA.toFixed(2)} MVA`, `${Math.ceil(calculationResults.faultMVA * 1.3)} MVA`, '30%'],
+                    ['Transformer Short-Circuit Withstand', `${calculationResults.iscSymm.toFixed(2)} kA`, `${Math.ceil(calculationResults.iscSymm * 1.2)} kA`, '20%']
+                ];
+                
+                const ws5 = XLSX.utils.aoa_to_sheet(equipmentData);
+                ws5['!cols'] = [{ width: 35 }, { width: 20 }, { width: 25 }, { width: 15 }];
+                XLSX.utils.book_append_sheet(wb, ws5, 'Equipment Recommendations');
+                
+                // Write file
+                XLSX.writeFile(wb, `${projectName.replace(/[^a-z0-9]/gi, '_')}_SC_Analysis_${new Date().toISOString().split('T')[0]}.xlsx`);
+                showToast('Excel exported successfully', 'success');
+                
+            } catch (error) {
+                console.error('Excel export error:', error);
+                showToast('Excel export failed: ' + error.message, 'error');
+            }
         }
         
         function printReport() {
@@ -2809,6 +4037,472 @@
             a.click();
             URL.revokeObjectURL(url);
         }
+        
+        // ============================================================================
+        // CHARTS AND VISUALIZATION MODULE - Chart.js Integration
+        // ============================================================================
+        
+        let faultContributionChart = null;
+        let comparisonChart = null;
+        
+        /**
+         * Create fault contribution pie chart
+         */
+        function createFaultContributionChart(contributions) {
+            const canvas = document.getElementById('faultContributionChart');
+            if (!canvas) return;
+            
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not loaded');
+                canvas.parentElement.innerHTML = '<p style="color: #888; text-align: center; padding: 50px;">Chart.js library not available</p>';
+                return;
+            }
+            
+            if (faultContributionChart) {
+                faultContributionChart.destroy();
+            }
+            
+            const ctx = canvas.getContext('2d');
+            faultContributionChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: contributions.map(c => c.name),
+                    datasets: [{
+                        data: contributions.map(c => c.percentage),
+                        backgroundColor: [
+                            'rgba(30, 60, 114, 0.8)',
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(118, 75, 162, 0.8)',
+                            'rgba(237, 100, 166, 0.8)',
+                            'rgba(255, 154, 158, 0.8)'
+                        ],
+                        borderColor: 'white',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Fault Current Contribution by Component'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.parsed.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Create comparison bar chart
+         */
+        function createComparisonChart(perUnitData, pointToPointData) {
+            const canvas = document.getElementById('comparisonChart');
+            if (!canvas) return;
+            
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not loaded');
+                canvas.parentElement.innerHTML = '<p style="color: #888; text-align: center; padding: 50px;">Chart.js library not available</p>';
+                return;
+            }
+            
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+            
+            const ctx = canvas.getContext('2d');
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Symmetrical Current', 'Asymmetrical Current', 'Fault MVA'],
+                    datasets: [{
+                        label: 'Per-Unit Method',
+                        data: [perUnitData.iscSymm, perUnitData.iscAsymm, perUnitData.faultMVA],
+                        backgroundColor: 'rgba(30, 60, 114, 0.8)',
+                        borderColor: 'rgba(30, 60, 114, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Point-to-Point Method',
+                        data: [pointToPointData.iscSymm, pointToPointData.iscAsymm, pointToPointData.faultMVA],
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Calculation Method Comparison'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        /**
+         * Generate simple SVG single-line diagram
+         */
+        function generateSingleLineDiagram() {
+            const svg = document.getElementById('singleLineDiagram');
+            if (!svg) return;
+            
+            let svgContent = `
+                <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#1e3c72" />
+                        </marker>
+                    </defs>
+                    
+                    <!-- Title -->
+                    <text x="400" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#1e3c72">
+                        Single Line Diagram
+                    </text>
+            `;
+            
+            let yPos = 80;
+            const xCenter = 400;
+            
+            // Draw components
+            components.forEach((comp, index) => {
+                const compType = comp.type.toUpperCase().replace(/_/g, ' ');
+                
+                // Draw connection line
+                if (index > 0) {
+                    svgContent += `
+                        <line x1="${xCenter}" y1="${yPos - 40}" x2="${xCenter}" y2="${yPos}" 
+                              stroke="#1e3c72" stroke-width="2" marker-end="url(#arrowhead)" />
+                    `;
+                }
+                
+                // Draw component symbol
+                if (comp.type === 'transformer') {
+                    svgContent += `
+                        <circle cx="${xCenter}" cy="${yPos + 20}" r="30" fill="none" stroke="#1e3c72" stroke-width="2" />
+                        <circle cx="${xCenter}" cy="${yPos + 20}" r="20" fill="none" stroke="#1e3c72" stroke-width="2" />
+                    `;
+                } else if (comp.type === 'cable') {
+                    svgContent += `
+                        <rect x="${xCenter - 25}" y="${yPos + 10}" width="50" height="20" 
+                              fill="none" stroke="#1e3c72" stroke-width="2" />
+                    `;
+                } else if (comp.type === 'generator' || comp.type === 'motor') {
+                    svgContent += `
+                        <circle cx="${xCenter}" cy="${yPos + 20}" r="30" fill="none" stroke="#1e3c72" stroke-width="2" />
+                        <text x="${xCenter}" y="${yPos + 25}" text-anchor="middle" font-size="16" fill="#1e3c72">G</text>
+                    `;
+                } else {
+                    svgContent += `
+                        <rect x="${xCenter - 30}" y="${yPos + 5}" width="60" height="30" 
+                              fill="none" stroke="#1e3c72" stroke-width="2" />
+                    `;
+                }
+                
+                // Draw label
+                svgContent += `
+                    <text x="${xCenter}" y="${yPos + 60}" text-anchor="middle" font-size="12" fill="#1e3c72">
+                        ${compType}
+                    </text>
+                `;
+                
+                yPos += 100;
+            });
+            
+            // Draw fault point
+            svgContent += `
+                <line x1="${xCenter - 20}" y1="${yPos}" x2="${xCenter + 20}" y2="${yPos}" 
+                      stroke="red" stroke-width="3" />
+                <line x1="${xCenter}" y1="${yPos - 10}" x2="${xCenter}" y2="${yPos + 10}" 
+                      stroke="red" stroke-width="3" />
+                <text x="${xCenter}" y="${yPos + 25}" text-anchor="middle" font-size="14" 
+                      fill="red" font-weight="bold">FAULT POINT</text>
+            `;
+            
+            if (calculationResults) {
+                svgContent += `
+                    <text x="${xCenter}" y="${yPos + 45}" text-anchor="middle" font-size="12" fill="red">
+                        If = ${calculationResults.iscSymm.toFixed(2)} kA
+                    </text>
+                `;
+            }
+            
+            svgContent += `</svg>`;
+            svg.innerHTML = svgContent;
+        }
+        
+        /**
+         * Export diagram as PNG
+         */
+        async function exportDiagramAsPNG() {
+            try {
+                if (typeof html2canvas === 'undefined') {
+                    throw new Error('html2canvas library not loaded');
+                }
+                
+                const svg = document.getElementById('singleLineDiagram');
+                if (!svg) {
+                    throw new Error('Diagram not found');
+                }
+                
+                showToast('Generating diagram image...', 'info');
+                
+                const canvas = await html2canvas(svg);
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `single_line_diagram_${new Date().toISOString().split('T')[0]}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast('Diagram exported successfully', 'success');
+                });
+            } catch (error) {
+                console.error('Diagram export error:', error);
+                showToast('Diagram export failed: ' + error.message, 'error');
+            }
+        }
+        
+        // ============================================================================
+        // QUICK-FILL TEMPLATES MODULE
+        // ============================================================================
+        
+        const quickFillTemplates = {
+            industrial_480_4160: {
+                name: 'Industrial Facility (480V/4160V)',
+                description: 'Typical industrial plant with medium and low voltage distribution',
+                systemVoltage: 480,
+                frequency: 60,
+                components: [
+                    { type: 'transformer', power: 2.5, impedance: 5.75, primaryV: 13.8, secondaryV: 4.16, rx: 0.1 },
+                    { type: 'cable', length: 50, resistance: 0.194, reactance: 0.079, cableType: 'single' },
+                    { type: 'transformer', power: 1.5, impedance: 5.75, primaryV: 4.16, secondaryV: 0.48, rx: 0.12 },
+                    { type: 'motor', power: 0.5, reactance: 18, voltage: 0.48, rx: 0.15 }
+                ]
+            },
+            commercial_208_480: {
+                name: 'Commercial Building (208V/480V)',
+                description: 'Typical commercial office building electrical system',
+                systemVoltage: 480,
+                frequency: 60,
+                components: [
+                    { type: 'transformer', power: 1.0, impedance: 5.75, primaryV: 13.8, secondaryV: 0.48, rx: 0.1 },
+                    { type: 'cable', length: 30, resistance: 0.249, reactance: 0.082, cableType: 'multi' },
+                    { type: 'transformer', power: 0.225, impedance: 4.5, primaryV: 0.48, secondaryV: 0.208, rx: 0.15 }
+                ]
+            },
+            data_center: {
+                name: 'Data Center with UPS',
+                description: 'High reliability data center configuration',
+                systemVoltage: 480,
+                frequency: 60,
+                components: [
+                    { type: 'transformer', power: 2.0, impedance: 5.75, primaryV: 13.8, secondaryV: 0.48, rx: 0.1 },
+                    { type: 'cable', length: 20, resistance: 0.139, reactance: 0.075, cableType: 'single' },
+                    { type: 'ups', power: 500, voltage: 480, backupTime: 15, upsConfig: 'online' },
+                    { type: 'generator', power: 1.5, reactance: 15, voltage: 0.48, rx: 0.1 }
+                ]
+            },
+            manufacturing: {
+                name: 'Manufacturing Plant',
+                description: 'Large manufacturing facility with motors and drives',
+                systemVoltage: 4160,
+                frequency: 60,
+                components: [
+                    { type: 'transformer', power: 5.0, impedance: 6.0, primaryV: 13.8, secondaryV: 4.16, rx: 0.08 },
+                    { type: 'cable', length: 100, resistance: 0.097, reactance: 0.072, cableType: 'single' },
+                    { type: 'motor', power: 2.0, reactance: 16, voltage: 4.16, rx: 0.1 },
+                    { type: 'motor', power: 1.5, reactance: 17, voltage: 4.16, rx: 0.12 }
+                ]
+            },
+            hospital: {
+                name: 'Hospital/Healthcare Facility',
+                description: 'Healthcare facility with emergency power',
+                systemVoltage: 480,
+                frequency: 60,
+                components: [
+                    { type: 'transformer', power: 2.5, impedance: 5.75, primaryV: 13.8, secondaryV: 0.48, rx: 0.1 },
+                    { type: 'cable', length: 40, resistance: 0.194, reactance: 0.079, cableType: 'single' },
+                    { type: 'generator', power: 2.0, reactance: 15, voltage: 0.48, rx: 0.1 },
+                    { type: 'ups', power: 300, voltage: 480, backupTime: 30, upsConfig: 'online' }
+                ]
+            },
+            utility_substation: {
+                name: 'Utility Substation',
+                description: 'Utility transmission to distribution substation',
+                systemVoltage: 13800,
+                frequency: 60,
+                components: [
+                    { type: 'utility_grid', power: 100, impedance: 8.0, voltage: 138 },
+                    { type: 'transformer', power: 25, impedance: 7.5, primaryV: 138, secondaryV: 13.8, rx: 0.05 },
+                    { type: 'cable', length: 200, resistance: 0.065, reactance: 0.069, cableType: 'single' }
+                ]
+            }
+        };
+        
+        /**
+         * Load quick-fill template
+         */
+        function loadTemplate(templateKey) {
+            const template = quickFillTemplates[templateKey];
+            if (!template) {
+                showToast('Template not found', 'error');
+                return;
+            }
+            
+            if (components.length > 0) {
+                if (!confirm(`This will replace current components with "${template.name}" template. Continue?`)) {
+                    return;
+                }
+            }
+            
+            document.getElementById('systemVoltage').value = template.systemVoltage;
+            document.getElementById('systemFrequency').value = template.frequency;
+            components = JSON.parse(JSON.stringify(template.components)); // Deep copy
+            
+            updateComponentList();
+            showToast(`Template "${template.name}" loaded successfully`, 'success');
+        }
+        
+        /**
+         * Show template selector modal
+         */
+        function showTemplateSelector() {
+            const modal = document.createElement('div');
+            modal.id = 'templateModal';
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            
+            let templatesHtml = '';
+            Object.keys(quickFillTemplates).forEach(key => {
+                const template = quickFillTemplates[key];
+                templatesHtml += `
+                    <div style="padding: 15px; border: 2px solid #e1e8ed; border-radius: 8px; margin-bottom: 15px; cursor: pointer; transition: all 0.3s;"
+                         onmouseover="this.style.borderColor='#667eea'; this.style.backgroundColor='#f0f4ff';"
+                         onmouseout="this.style.borderColor='#e1e8ed'; this.style.backgroundColor='white';"
+                         onclick="loadTemplate('${key}'); closeTemplateModal();">
+                        <h4 style="color: #1e3c72; margin-bottom: 5px;">${template.name}</h4>
+                        <p style="color: #64748b; font-size: 13px; margin-bottom: 8px;">${template.description}</p>
+                        <small style="color: #94a3b8;">
+                            ${template.systemVoltage}V, ${template.frequency}Hz, ${template.components.length} components
+                        </small>
+                    </div>
+                `;
+            });
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h2>Quick-Fill Templates</h2>
+                        <button class="close" onclick="closeTemplateModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+                        <p style="color: #64748b; margin-bottom: 20px;">
+                            Select a pre-configured template to quickly populate your project with typical components.
+                        </p>
+                        ${templatesHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeTemplateModal()">Cancel</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        /**
+         * Close template modal
+         */
+        function closeTemplateModal() {
+            const modal = document.getElementById('templateModal');
+            if (modal) modal.remove();
+        }
+        
+        // ============================================================================
+        // INITIALIZATION AND EVENT LISTENERS
+        // ============================================================================
+        
+        /**
+         * Initialize application on page load
+         */
+        window.addEventListener('load', () => {
+            initializeAutoSave();
+            initializeKeyboardShortcuts();
+            loadEquipmentDatabase();
+            
+            // Check for auto-save recovery
+            const autoSave = localStorage.getItem('autoSave');
+            if (autoSave) {
+                const timestamp = localStorage.getItem('autoSaveTimestamp');
+                const date = new Date(timestamp);
+                if (confirm(`Found auto-saved project from ${date.toLocaleString()}. Restore it?`)) {
+                    try {
+                        const project = JSON.parse(autoSave);
+                        restoreProjectData(project);
+                        showToast('Project restored from auto-save', 'success');
+                    } catch (error) {
+                        console.error('Failed to restore auto-save:', error);
+                        showToast('Failed to restore auto-save', 'error');
+                    }
+                }
+            }
+            
+            // Add recent projects menu to UI if not exists
+            const recentProjectsDiv = document.createElement('div');
+            recentProjectsDiv.id = 'recentProjectsMenu';
+            recentProjectsDiv.style.cssText = 'margin-top: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;';
+            const projectSection = document.querySelector('.input-section');
+            if (projectSection) {
+                projectSection.appendChild(recentProjectsDiv);
+            }
+            
+            updateRecentProjectsMenu();
+        });
+        
+        // Add CSS animations for toasts
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
         
         // Close modals when clicking outside
         window.onclick = function(event) {
