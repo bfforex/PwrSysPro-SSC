@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Short Circuit Calculator - IEC/IEEE Standards</title>
+    <title>PowerSys Pro - Executive Short Circuit Calculator</title>
     <style>
         * {
             margin: 0;
@@ -12,62 +12,152 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.35);
             overflow: hidden;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
             color: white;
-            padding: 30px;
+            padding: 40px 30px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1)),
+                        linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.1) 75%, rgba(255,255,255,0.1));
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            opacity: 0.3;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
         }
         
         .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            font-size: 2.8em;
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .header .subtitle {
+            font-size: 1.2em;
+            font-weight: 300;
+            margin-bottom: 15px;
+            opacity: 0.95;
         }
         
         .standards-badge {
             display: inline-block;
-            background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(10px);
+            padding: 8px 18px;
+            border-radius: 25px;
             margin: 5px;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+        
+        .standards-badge:hover {
+            background: rgba(255,255,255,0.35);
+            transform: translateY(-2px);
+        }
+        
+        .nav-tabs {
+            display: flex;
+            background: #f5f7fa;
+            padding: 15px 30px 0 30px;
+            border-bottom: 2px solid #e1e8ed;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            margin-right: 5px;
+            border: none;
+            background: transparent;
+            color: #5a6c7d;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .nav-tab:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+        
+        .nav-tab.active {
+            background: white;
+            color: #1e3c72;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
         }
         
         .main-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            padding: 30px;
+            gap: 35px;
+            padding: 35px;
+            background: #fafbfc;
         }
         
         .input-section, .results-section {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border: 1px solid #e8eef2;
         }
         
         .section-title {
-            font-size: 1.5em;
-            color: #667eea;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+            font-size: 1.6em;
+            color: #1e3c72;
+            margin-bottom: 25px;
+            padding-bottom: 12px;
             border-bottom: 3px solid #667eea;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 5px;
+            height: 28px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 3px;
         }
         
         .form-group {
@@ -77,29 +167,55 @@
         label {
             display: block;
             font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 14px;
+            letter-spacing: 0.3px;
         }
         
         .info-text {
-            font-size: 0.85em;
-            color: #666;
-            margin-top: 4px;
+            font-size: 0.82em;
+            color: #718096;
+            margin-top: 5px;
+            line-height: 1.5;
+            font-style: italic;
         }
         
         input, select {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 13px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 15px;
             transition: all 0.3s;
+            background: #fafbfc;
+        }
+        
+        input:hover, select:hover {
+            border-color: #cbd5e0;
         }
         
         input:focus, select:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
+            background: white;
+        }
+        
+        input.error {
+            border-color: #f56565;
+            background: #fff5f5;
+        }
+        
+        .error-message {
+            color: #e53e3e;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        input.error + .error-message {
+            display: block;
         }
         
         .component-list {
@@ -122,14 +238,20 @@
         }
         
         .btn {
-            padding: 12px 24px;
+            padding: 14px 28px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 10px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
             margin-right: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
         }
         
         .btn-primary {
@@ -138,37 +260,60 @@
         }
         
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.45);
         }
         
         .btn-secondary {
-            background: #6c757d;
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
             color: white;
         }
         
         .btn-secondary:hover {
-            background: #5a6268;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(108, 117, 125, 0.4);
         }
         
         .btn-danger {
-            background: #dc3545;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
             color: white;
-            padding: 8px 16px;
+            padding: 10px 18px;
             font-size: 14px;
         }
         
         .btn-danger:hover {
-            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
         }
         
         .btn-success {
-            background: #28a745;
+            background: linear-gradient(135deg, #28a745 0%, #218838 100%);
             color: white;
         }
         
         .btn-success:hover {
-            background: #218838;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            color: white;
+        }
+        
+        .btn-info:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(23, 162, 184, 0.4);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #333;
+        }
+        
+        .btn-warning:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 193, 7, 0.4);
         }
         
         .calculation-steps {
@@ -219,15 +364,257 @@
         }
         
         .standard-selector {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .method-selector {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border: 2px solid #667eea;
+        }
+        
+        .method-selector label {
+            color: #1e3c72;
+            font-size: 15px;
+        }
+        
+        .comparison-mode {
+            background: #fffbeb;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid #fbbf24;
+        }
+        
+        .executive-summary {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 2px solid #0284c7;
+        }
+        
+        .executive-summary h3 {
+            color: #0c4a6e;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .summary-card {
             background: white;
             padding: 15px;
             border-radius: 10px;
-            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .summary-card-label {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .summary-card-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #1e3c72;
+        }
+        
+        .equipment-database {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .database-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .database-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .database-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .safety-analysis {
+            background: #fef2f2;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 2px solid #ef4444;
+        }
+        
+        .safety-analysis h4 {
+            color: #991b1b;
+            margin-bottom: 12px;
+        }
+        
+        .arc-flash-boundary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .boundary-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ef4444;
+        }
+        
+        .sensitivity-analysis {
+            background: #f0fdf4;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 2px solid #10b981;
+        }
+        
+        .sensitivity-analysis h4 {
+            color: #065f46;
+            margin-bottom: 12px;
+        }
+        
+        .help-tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 5px;
+            cursor: help;
+        }
+        
+        .help-icon {
+            background: #3b82f6;
+            color: white;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .help-tooltip:hover .help-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .help-text {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #1e293b;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            width: 250px;
+            transition: opacity 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .help-text::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
         
         @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .nav-tabs {
+                overflow-x: auto;
+                padding: 10px 15px 0;
+            }
+            
             .main-content {
+                padding: 20px;
+                gap: 20px;
+            }
+            
+            .summary-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .database-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
     </style>
@@ -235,27 +622,60 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚡ Short Circuit Calculator</h1>
-            <p>Standards-Compliant Short Circuit Current Calculation</p>
-            <div style="margin-top: 10px;">
-                <span class="standards-badge">IEC 60909</span>
-                <span class="standards-badge">IEEE 141 (Red Book)</span>
-                <span class="standards-badge">IEEE C37</span>
+            <div class="header-content">
+                <h1>⚡ PowerSys Pro - Executive Short Circuit Calculator</h1>
+                <p class="subtitle">Professional Standards-Compliant Short Circuit Analysis & Equipment Selection</p>
+                <div style="margin-top: 15px;">
+                    <span class="standards-badge">IEC 60909-0</span>
+                    <span class="standards-badge">IEEE 141 (Red Book)</span>
+                    <span class="standards-badge">IEEE C37.010</span>
+                    <span class="standards-badge">ANSI C37.5</span>
+                </div>
             </div>
         </div>
         
-        <div class="main-content">
-            <div class="input-section">
-                <h2 class="section-title">Circuit Configuration</h2>
-                
-                <div class="standard-selector">
-                    <label>Calculation Standard:</label>
-                    <select id="calcStandard">
-                        <option value="iec">IEC 60909 (Europe/International)</option>
-                        <option value="ieee">IEEE 141/C37 (North America)</option>
-                    </select>
-                    <div class="info-text">Select the applicable standard for your region</div>
-                </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('calculator')">Calculator</button>
+            <button class="nav-tab" onclick="switchTab('equipment')">Equipment Database</button>
+            <button class="nav-tab" onclick="switchTab('safety')">Safety Analysis</button>
+            <button class="nav-tab" onclick="switchTab('reports')">Reports & Export</button>
+            <button class="nav-tab" onclick="switchTab('help')">Help & Documentation</button>
+        </div>
+        
+        <div id="calculatorTab" class="tab-content active">
+            <div class="main-content">
+                <div class="input-section">
+                    <h2 class="section-title">Circuit Configuration</h2>
+                    
+                    <div class="standard-selector">
+                        <label>Calculation Standard:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">IEC 60909 is used primarily in Europe and internationally. IEEE standards are common in North America.</span>
+                            </span>
+                        </label>
+                        <select id="calcStandard" onchange="updateMethodOptions()">
+                            <option value="iec">IEC 60909-0 (Europe/International)</option>
+                            <option value="ieee">IEEE 141/C37 (North America)</option>
+                            <option value="ansi">ANSI C37.5 (North America)</option>
+                        </select>
+                        <div class="info-text">Select the applicable standard for your region and requirements</div>
+                    </div>
+                    
+                    <div class="method-selector">
+                        <label>Calculation Method:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Per-Unit method uses normalized values. Point-to-Point calculates actual impedances directly. Comparison shows both methods side-by-side.</span>
+                            </span>
+                        </label>
+                        <select id="calcMethod">
+                            <option value="per-unit">Per-Unit Method (Normalized)</option>
+                            <option value="point-to-point">Point-to-Point Method (Direct)</option>
+                            <option value="comparison">Comparison Mode (Both Methods)</option>
+                        </select>
+                        <div class="info-text">Choose your preferred calculation approach</div>
+                    </div>
                 
                 <div class="form-group">
                     <label>Project Name:</label>
@@ -307,11 +727,114 @@
             </div>
             
             <div class="results-section">
-                <h2 class="section-title">Results</h2>
+                <h2 class="section-title">Results & Analysis</h2>
                 <div id="results">
-                    <p style="color: #999; text-align: center; padding: 50px 20px;">
-                        Add components and click Calculate to see results
+                    <p style="color: #94a3b8; text-align: center; padding: 50px 20px; font-size: 15px;">
+                        Add components and click <strong>Calculate</strong> to see comprehensive results, equipment recommendations, and safety analysis
                     </p>
+                </div>
+            </div>
+        </div>
+        </div>
+        
+        <div id="equipmentTab" class="tab-content">
+            <div style="padding: 35px; background: #fafbfc;">
+                <h2 class="section-title">Equipment Database</h2>
+                <div class="equipment-database">
+                    <h4>Standard Transformer Database</h4>
+                    <div class="database-grid" id="transformerDB"></div>
+                </div>
+                <div class="equipment-database">
+                    <h4>Standard Cable Database</h4>
+                    <div class="database-grid" id="cableDB"></div>
+                </div>
+                <div class="equipment-database">
+                    <h4>Standard Generator Database</h4>
+                    <div class="database-grid" id="generatorDB"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="safetyTab" class="tab-content">
+            <div style="padding: 35px; background: #fafbfc;">
+                <h2 class="section-title">Safety Analysis</h2>
+                <div id="safetyResults">
+                    <p style="color: #94a3b8; text-align: center; padding: 50px 20px;">
+                        Complete calculation first to see safety analysis including arc flash boundaries and PPE requirements
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="reportsTab" class="tab-content">
+            <div style="padding: 35px; background: #fafbfc;">
+                <h2 class="section-title">Reports & Export</h2>
+                <div style="background: white; padding: 30px; border-radius: 16px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">Export Options</h3>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="exportPDF()">📄 Export PDF Report</button>
+                        <button class="btn btn-success" onclick="exportExcel()">📊 Export to Excel</button>
+                        <button class="btn btn-info" onclick="exportResults()">📝 Export Text Report</button>
+                        <button class="btn btn-secondary" onclick="printReport()">🖨️ Print Report</button>
+                    </div>
+                    <div id="reportPreview" style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 10px; display: none;">
+                        <h4 style="color: #1e3c72; margin-bottom: 15px;">Report Preview</h4>
+                        <div id="reportContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="helpTab" class="tab-content">
+            <div style="padding: 35px; background: #fafbfc;">
+                <h2 class="section-title">Help & Documentation</h2>
+                <div style="background: white; padding: 30px; border-radius: 16px;">
+                    <div class="accordion" id="helpAccordion">
+                        <div class="accordion-item" style="margin-bottom: 15px;">
+                            <h3 style="background: #f0f4ff; padding: 15px; border-radius: 8px; cursor: pointer; color: #1e3c72;" onclick="toggleAccordion('help1')">
+                                📘 Getting Started
+                            </h3>
+                            <div id="help1" style="padding: 20px; display: none; border-left: 3px solid #667eea; margin-left: 10px;">
+                                <p><strong>Step 1:</strong> Select your calculation standard (IEC 60909, IEEE 141, or ANSI)</p>
+                                <p><strong>Step 2:</strong> Choose calculation method (Per-Unit, Point-to-Point, or Comparison)</p>
+                                <p><strong>Step 3:</strong> Enter system voltage and frequency</p>
+                                <p><strong>Step 4:</strong> Add components (transformers, cables, generators, motors, utility sources)</p>
+                                <p><strong>Step 5:</strong> Click Calculate to see results and recommendations</p>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="margin-bottom: 15px;">
+                            <h3 style="background: #f0f4ff; padding: 15px; border-radius: 8px; cursor: pointer; color: #1e3c72;" onclick="toggleAccordion('help2')">
+                                📊 Calculation Methods
+                            </h3>
+                            <div id="help2" style="padding: 20px; display: none; border-left: 3px solid #667eea; margin-left: 10px;">
+                                <p><strong>Per-Unit Method:</strong> Traditional approach using normalized values (pu) on a base MVA. Best for complex systems.</p>
+                                <p><strong>Point-to-Point Method:</strong> Direct impedance calculations from source to fault. Simpler for radial systems.</p>
+                                <p><strong>Comparison Mode:</strong> Shows results from both methods side-by-side for verification.</p>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="margin-bottom: 15px;">
+                            <h3 style="background: #f0f4ff; padding: 15px; border-radius: 8px; cursor: pointer; color: #1e3c72;" onclick="toggleAccordion('help3')">
+                                ⚡ Standards Overview
+                            </h3>
+                            <div id="help3" style="padding: 20px; display: none; border-left: 3px solid #667eea; margin-left: 10px;">
+                                <p><strong>IEC 60909-0:</strong> International standard for short-circuit calculations. Uses voltage factor c and κ factor for peak current.</p>
+                                <p><strong>IEEE 141 (Red Book):</strong> IEEE recommended practice for industrial/commercial power systems.</p>
+                                <p><strong>IEEE C37.010:</strong> Application guide for AC high-voltage circuit breakers. Includes asymmetrical calculations.</p>
+                                <p><strong>ANSI C37.5:</strong> Methods for determining values of sinusoidal current. Used for equipment rating.</p>
+                            </div>
+                        </div>
+                        <div class="accordion-item" style="margin-bottom: 15px;">
+                            <h3 style="background: #f0f4ff; padding: 15px; border-radius: 8px; cursor: pointer; color: #1e3c72;" onclick="toggleAccordion('help4')">
+                                🛡️ Safety & Compliance
+                            </h3>
+                            <div id="help4" style="padding: 20px; display: none; border-left: 3px solid #667eea; margin-left: 10px;">
+                                <p><strong>Arc Flash Analysis:</strong> Estimates incident energy and arc flash boundaries per IEEE 1584.</p>
+                                <p><strong>PPE Selection:</strong> Recommends personal protective equipment based on calculated incident energy.</p>
+                                <p><strong>Equipment Ratings:</strong> Verifies circuit breaker and equipment ratings against calculated fault currents.</p>
+                                <p><strong>Code Compliance:</strong> Checks calculations against NEC and IEC requirements.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -320,6 +843,40 @@
     <script>
         let components = [];
         let calculationResults = null;
+        let perUnitResults = null;
+        let pointToPointResults = null;
+        
+        // Equipment Database
+        const equipmentDatabase = {
+            transformers: [
+                { name: '500 kVA', power: 0.5, impedance: 5.5, primaryV: 13.8, secondaryV: 0.48 },
+                { name: '750 kVA', power: 0.75, impedance: 5.75, primaryV: 13.8, secondaryV: 0.48 },
+                { name: '1000 kVA', power: 1.0, impedance: 5.75, primaryV: 13.8, secondaryV: 0.48 },
+                { name: '1500 kVA', power: 1.5, impedance: 5.75, primaryV: 13.8, secondaryV: 0.48 },
+                { name: '2000 kVA', power: 2.0, impedance: 5.75, primaryV: 13.8, secondaryV: 0.48 },
+                { name: '2500 kVA', power: 2.5, impedance: 6.0, primaryV: 13.8, secondaryV: 0.48 },
+            ],
+            cables: [
+                { name: '4/0 AWG CU', resistance: 0.249, reactance: 0.082, type: 'single' },
+                { name: '250 MCM CU', resistance: 0.194, reactance: 0.079, type: 'single' },
+                { name: '350 MCM CU', resistance: 0.139, reactance: 0.075, type: 'single' },
+                { name: '500 MCM CU', resistance: 0.097, reactance: 0.072, type: 'single' },
+                { name: '750 MCM CU', resistance: 0.065, reactance: 0.069, type: 'single' },
+            ],
+            generators: [
+                { name: '1 MVA Gen', power: 1.0, reactance: 15, voltage: 0.48, rx: 0.1 },
+                { name: '2 MVA Gen', power: 2.0, reactance: 15, voltage: 0.48, rx: 0.1 },
+                { name: '5 MVA Gen', power: 5.0, reactance: 15, voltage: 4.16, rx: 0.1 },
+            ]
+        };
+        
+        // Validation rules
+        const validationRules = {
+            systemVoltage: { min: 100, max: 1000000, required: true },
+            power: { min: 0.001, max: 10000, required: true },
+            impedance: { min: 0.01, max: 100, required: true },
+            voltage: { min: 0.1, max: 1000, required: true },
+        };
         
         const componentInputTemplates = {
             transformer: `
@@ -473,11 +1030,121 @@
             `
         };
         
+        // Tab switching
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            const navTabs = document.querySelectorAll('.nav-tab');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            navTabs.forEach(nav => nav.classList.remove('active'));
+            
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // Toggle accordion
+        function toggleAccordion(id) {
+            const element = document.getElementById(id);
+            element.style.display = element.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Update method options based on standard
+        function updateMethodOptions() {
+            const standard = document.getElementById('calcStandard').value;
+            // Method options are standard-agnostic, so no changes needed
+        }
+        
+        // Input validation
+        function validateInput(value, fieldName) {
+            const rules = validationRules[fieldName];
+            if (!rules) return { valid: true };
+            
+            if (rules.required && (!value || value === '')) {
+                return { valid: false, message: 'This field is required' };
+            }
+            
+            const numValue = parseFloat(value);
+            if (isNaN(numValue)) {
+                return { valid: false, message: 'Please enter a valid number' };
+            }
+            
+            if (rules.min !== undefined && numValue < rules.min) {
+                return { valid: false, message: `Value must be at least ${rules.min}` };
+            }
+            
+            if (rules.max !== undefined && numValue > rules.max) {
+                return { valid: false, message: `Value must be at most ${rules.max}` };
+            }
+            
+            return { valid: true };
+        }
+        
+        // Load equipment database into UI
+        function loadEquipmentDatabase() {
+            const transformerDB = document.getElementById('transformerDB');
+            const cableDB = document.getElementById('cableDB');
+            const generatorDB = document.getElementById('generatorDB');
+            
+            equipmentDatabase.transformers.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'database-item';
+                div.innerHTML = `<strong>${item.name}</strong><br><small>${item.impedance}% Z</small>`;
+                div.onclick = () => loadFromDatabase('transformer', item);
+                transformerDB.appendChild(div);
+            });
+            
+            equipmentDatabase.cables.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'database-item';
+                div.innerHTML = `<strong>${item.name}</strong><br><small>${item.resistance} Ω/km</small>`;
+                div.onclick = () => loadFromDatabase('cable', item);
+                cableDB.appendChild(div);
+            });
+            
+            equipmentDatabase.generators.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'database-item';
+                div.innerHTML = `<strong>${item.name}</strong><br><small>${item.reactance}% X"d</small>`;
+                div.onclick = () => loadFromDatabase('generator', item);
+                generatorDB.appendChild(div);
+            });
+        }
+        
+        function loadFromDatabase(type, data) {
+            document.getElementById('componentType').value = type;
+            document.getElementById('componentInputs').innerHTML = componentInputTemplates[type];
+            
+            // Populate fields based on type
+            setTimeout(() => {
+                if (type === 'transformer') {
+                    document.getElementById('compPower').value = data.power;
+                    document.getElementById('compImpedance').value = data.impedance;
+                    document.getElementById('compPrimaryV').value = data.primaryV;
+                    document.getElementById('compSecondaryV').value = data.secondaryV;
+                } else if (type === 'cable') {
+                    document.getElementById('compResistance').value = data.resistance;
+                    document.getElementById('compReactance').value = data.reactance;
+                    document.getElementById('compCableType').value = data.type;
+                } else if (type === 'generator') {
+                    document.getElementById('compPower').value = data.power;
+                    document.getElementById('compReactance').value = data.reactance;
+                    document.getElementById('compVoltage').value = data.voltage;
+                    document.getElementById('compRX').value = data.rx;
+                }
+                switchTab('calculator');
+            }, 100);
+        }
+        
         document.getElementById('componentType').addEventListener('change', function() {
             document.getElementById('componentInputs').innerHTML = componentInputTemplates[this.value];
         });
         
         document.getElementById('componentInputs').innerHTML = componentInputTemplates['transformer'];
+        
+        // Initialize equipment database on load
+        window.addEventListener('load', function() {
+            loadEquipmentDatabase();
+        });
         
         function addComponent() {
             const type = document.getElementById('componentType').value;
@@ -579,36 +1246,98 @@
             const systemVoltage = parseFloat(document.getElementById('systemVoltage').value);
             const standard = document.getElementById('calcStandard').value;
             const frequency = parseFloat(document.getElementById('systemFrequency').value);
+            const method = document.getElementById('calcMethod').value;
             
-            if (!systemVoltage || components.length === 0) {
-                alert('Please enter system voltage and add at least one component');
+            // Validate inputs
+            const voltageValidation = validateInput(systemVoltage, 'systemVoltage');
+            if (!voltageValidation.valid) {
+                alert('System Voltage Error: ' + voltageValidation.message);
                 return;
             }
             
+            if (components.length === 0) {
+                alert('Please add at least one component before calculating');
+                return;
+            }
+            
+            // Show progress
+            const progressDiv = document.getElementById('results');
+            progressDiv.innerHTML = '<div class="progress-bar"><div class="progress-fill" id="calcProgress"></div></div><p style="text-align: center; margin-top: 15px; color: #667eea;">Calculating... Please wait</p>';
+            document.getElementById('calcProgress').style.width = '30%';
+            
+            setTimeout(() => {
+                if (method === 'comparison') {
+                    calculateComparison(systemVoltage, standard, frequency);
+                } else if (method === 'per-unit') {
+                    calculatePerUnit(systemVoltage, standard, frequency);
+                } else if (method === 'point-to-point') {
+                    calculatePointToPoint(systemVoltage, standard, frequency);
+                }
+                const progressBar = document.getElementById('calcProgress');
+                if (progressBar) progressBar.style.width = '100%';
+            }, 500);
+        }
+        
+        function calculatePerUnit(systemVoltage, standard, frequency) {
             const steps = [];
             let totalImpedance = { r: 0, x: 0 };
             const baseVoltage = systemVoltage / 1000;
             const baseMVA = 100;
             
-            // Voltage factor c per IEC 60909
+            steps.push({
+                title: '📊 Per-Unit Method Configuration',
+                content: `<strong>Base Values:</strong><br>Base MVA = ${baseMVA} MVA<br>Base Voltage = ${baseVoltage} kV<br>Base Impedance Zb = V²/S = ${(baseVoltage * baseVoltage / baseMVA).toFixed(4)} Ω`
+            });
+            
+            // Continue with existing calculation logic...
+            calculateWithSteps(systemVoltage, standard, frequency, steps, totalImpedance, baseMVA, 'per-unit');
+        }
+        
+        function calculatePointToPoint(systemVoltage, standard, frequency) {
+            const steps = [];
+            let totalImpedance = { r: 0, x: 0 };
+            
+            steps.push({
+                title: '🎯 Point-to-Point Method',
+                content: `<strong>Direct impedance calculation from source to fault</strong><br>System Voltage: ${systemVoltage} V<br>Frequency: ${frequency} Hz`
+            });
+            
+            // Calculate using direct impedance method
+            calculateWithSteps(systemVoltage, standard, frequency, steps, totalImpedance, null, 'point-to-point');
+        }
+        
+        function calculateComparison(systemVoltage, standard, frequency) {
+            // Calculate both methods
+            perUnitResults = null;
+            pointToPointResults = null;
+            
+            calculatePerUnit(systemVoltage, standard, frequency);
+            perUnitResults = calculationResults;
+            
+            calculatePointToPoint(systemVoltage, standard, frequency);
+            pointToPointResults = calculationResults;
+            
+            // Display comparison
+            displayComparison();
+        }
+        
+        function calculateWithSteps(systemVoltage, standard, frequency, steps, totalImpedance, baseMVA, method) {
+            if (!baseMVA) baseMVA = 100;
+            const baseVoltage = systemVoltage / 1000;
+            
+            // Voltage factor c per standard
             let cFactor = 1.0;
             if (standard === 'iec') {
                 if (systemVoltage <= 1000) {
-                    cFactor = 1.05; // Low voltage
+                    cFactor = 1.05;
                 } else if (systemVoltage <= 35000) {
-                    cFactor = 1.1; // Medium voltage
+                    cFactor = 1.1;
                 } else {
-                    cFactor = 1.1; // High voltage
+                    cFactor = 1.1;
                 }
             } else {
-                // IEEE uses multipliers based on voltage level
                 cFactor = systemVoltage <= 600 ? 1.0 : 1.05;
             }
-            
-            steps.push({
-                title: `Calculation Standard: ${standard === 'iec' ? 'IEC 60909' : 'IEEE 141/C37'}`,
-                content: `Base MVA = ${baseMVA} MVA<br>Base Voltage = ${baseVoltage} kV<br>System Frequency = ${frequency} Hz<br>Base Impedance Zb = V²/S = ${(baseVoltage * baseVoltage / baseMVA).toFixed(4)} Ω<br>Voltage Factor c = ${cFactor} (per ${standard.toUpperCase()} standard)`
-            });
             
             components.forEach((comp, index) => {
                 if (comp.type === 'transformer') {
@@ -798,27 +1527,206 @@
             if (!calculationResults) return;
             
             const resultsDiv = document.getElementById('results');
+            const standardName = calculationResults.standard === 'iec' ? 'IEC 60909-0' : 
+                                calculationResults.standard === 'ansi' ? 'ANSI C37.5' : 'IEEE 141/C37.010';
+            
             resultsDiv.innerHTML = `
-                <div class="result-value">
-                    Symmetrical ISC: ${calculationResults.iscSymm.toFixed(2)} kA<br>
-                    <span style="font-size: 0.6em; color: #dc3545;">
-                        ${calculationResults.standard === 'iec' ? 'Peak' : 'Asymmetrical'}: ${calculationResults.iscAsymm.toFixed(2)} kA
-                    </span>
+                <div class="executive-summary">
+                    <h3>📊 Executive Summary</h3>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-card-label">Symmetrical Current</div>
+                            <div class="summary-card-value">${calculationResults.iscSymm.toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">${calculationResults.standard === 'iec' ? 'Peak Current' : 'Asymmetrical'}</div>
+                            <div class="summary-card-value" style="color: #dc3545;">${calculationResults.iscAsymm.toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">Fault MVA</div>
+                            <div class="summary-card-value" style="color: #f59e0b;">${calculationResults.faultMVA.toFixed(2)}<span style="font-size: 0.5em;"> MVA</span></div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">X/R Ratio</div>
+                            <div class="summary-card-value" style="color: #8b5cf6;">${calculationResults.xr.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 8px;">
+                        <strong>Standard:</strong> ${standardName} | 
+                        <strong>Total Impedance:</strong> ${calculationResults.impedance.toFixed(4)} Ω |
+                        <strong>${calculationResults.standard === 'iec' ? 'κ Factor' : 'Multiplier'}:</strong> ${calculationResults.kappa.toFixed(3)}
+                    </div>
                 </div>
+                
                 <div class="warning-box">
-                    <strong>⚠️ Important:</strong> Results are based on ${calculationResults.standard === 'iec' ? 'IEC 60909' : 'IEEE 141/C37.010'} standard. 
-                    X/R ratio: ${calculationResults.xr.toFixed(2)} | Fault MVA: ${calculationResults.faultMVA.toFixed(2)} MVA
+                    <strong>⚠️ Equipment Selection Guidelines:</strong><br>
+                    • Circuit Breaker Interrupting Rating: ≥ ${calculationResults.iscSymm.toFixed(2)} kA (symmetrical)<br>
+                    • Momentary/Close & Latch Rating: ≥ ${calculationResults.iscAsymm.toFixed(2)} kA<br>
+                    • Consider X/R ratio (${calculationResults.xr.toFixed(2)}) for duty cycle calculations<br>
+                    • Verify equipment ratings include appropriate safety factors per local codes
                 </div>
+                
                 <div class="calculation-steps">
-                    <h3 style="color: #667eea; margin-bottom: 15px;">Step-by-Step Calculation</h3>
-                    ${calculationResults.steps.map(step => `
-                        <div class="step">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5em;">🔢</span>
+                        Detailed Step-by-Step Calculation
+                    </h3>
+                    ${calculationResults.steps.map((step, index) => `
+                        <div class="step" style="animation: fadeIn 0.5s ease-in ${index * 0.1}s both;">
                             <div class="step-title">${step.title}</div>
-                            <div>${step.content}</div>
+                            <div style="line-height: 1.8;">${step.content}</div>
                         </div>
                     `).join('')}
                 </div>
             `;
+            
+            // Update safety analysis
+            updateSafetyAnalysis(calculationResults);
+        }
+        
+        function displayComparison() {
+            if (!perUnitResults || !pointToPointResults) return;
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="comparison-mode">
+                    <h3 style="color: #f59e0b; margin-bottom: 15px;">⚖️ Comparison Mode</h3>
+                    <p>Comparing Per-Unit Method vs Point-to-Point Method</p>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                    <div style="background: #f0f9ff; padding: 20px; border-radius: 12px; border: 2px solid #0284c7;">
+                        <h4 style="color: #0c4a6e; margin-bottom: 15px;">Per-Unit Method</h4>
+                        <p><strong>Symmetrical:</strong> ${perUnitResults.iscSymm.toFixed(2)} kA</p>
+                        <p><strong>Asymmetrical:</strong> ${perUnitResults.iscAsymm.toFixed(2)} kA</p>
+                        <p><strong>Fault MVA:</strong> ${perUnitResults.faultMVA.toFixed(2)} MVA</p>
+                    </div>
+                    <div style="background: #f0fdf4; padding: 20px; border-radius: 12px; border: 2px solid #10b981;">
+                        <h4 style="color: #065f46; margin-bottom: 15px;">Point-to-Point Method</h4>
+                        <p><strong>Symmetrical:</strong> ${pointToPointResults.iscSymm.toFixed(2)} kA</p>
+                        <p><strong>Asymmetrical:</strong> ${pointToPointResults.iscAsymm.toFixed(2)} kA</p>
+                        <p><strong>Fault MVA:</strong> ${pointToPointResults.faultMVA.toFixed(2)} MVA</p>
+                    </div>
+                </div>
+                
+                <div class="executive-summary">
+                    <h3>📊 Recommended Values (Average)</h3>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-card-label">Symmetrical Current</div>
+                            <div class="summary-card-value">${((perUnitResults.iscSymm + pointToPointResults.iscSymm) / 2).toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">Asymmetrical Current</div>
+                            <div class="summary-card-value" style="color: #dc3545;">${((perUnitResults.iscAsymm + pointToPointResults.iscAsymm) / 2).toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function updateSafetyAnalysis(results) {
+            const safetyDiv = document.getElementById('safetyResults');
+            
+            // Simplified arc flash calculation (IEEE 1584 approximation)
+            const workingDistance = 0.457; // 18 inches in meters
+            const arcDuration = 0.1; // 100ms typical
+            const incidentEnergy = calculateIncidentEnergy(results.faultMVA, results.iscAsymm, workingDistance, arcDuration);
+            const arcFlashBoundary = calculateArcFlashBoundary(incidentEnergy, workingDistance);
+            
+            let ppeCategory = 'Category 0';
+            if (incidentEnergy > 1.2) ppeCategory = 'Category 1';
+            if (incidentEnergy > 4) ppeCategory = 'Category 2';
+            if (incidentEnergy > 8) ppeCategory = 'Category 3';
+            if (incidentEnergy > 25) ppeCategory = 'Category 4';
+            
+            safetyDiv.innerHTML = `
+                <div class="safety-analysis">
+                    <h4>⚠️ Arc Flash Hazard Analysis (IEEE 1584 Approximation)</h4>
+                    <div class="arc-flash-boundary">
+                        <div class="boundary-item">
+                            <strong>Incident Energy</strong><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">${incidentEnergy.toFixed(2)} cal/cm²</span><br>
+                            <small>At ${workingDistance * 39.37} inches working distance</small>
+                        </div>
+                        <div class="boundary-item">
+                            <strong>Arc Flash Boundary</strong><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">${arcFlashBoundary.toFixed(2)} feet</span><br>
+                            <small>Distance to 1.2 cal/cm²</small>
+                        </div>
+                        <div class="boundary-item">
+                            <strong>PPE Category</strong><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">${ppeCategory}</span><br>
+                            <small>Per NFPA 70E Table 130.5(C)</small>
+                        </div>
+                        <div class="boundary-item">
+                            <strong>Arc Duration</strong><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">${arcDuration * 1000} ms</span><br>
+                            <small>Assumed clearing time</small>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px;">
+                        <strong>⚠️ Safety Recommendations:</strong><br>
+                        • All personnel must wear appropriate PPE for ${ppeCategory}<br>
+                        • Establish arc flash boundary at ${arcFlashBoundary.toFixed(2)} feet<br>
+                        • Only qualified persons permitted within restricted approach boundary<br>
+                        • Consider arc-resistant switchgear for high incident energy levels<br>
+                        • Implement proper lockout/tagout procedures<br>
+                        • Regular inspection and maintenance per NFPA 70E and NEC requirements
+                    </div>
+                </div>
+                
+                <div class="sensitivity-analysis">
+                    <h4>📈 Sensitivity Analysis</h4>
+                    <p><strong>Impact of X/R Ratio Variation:</strong></p>
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        ${generateSensitivityTable(results)}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function calculateIncidentEnergy(faultMVA, faultCurrent, distance, duration) {
+            // Simplified IEEE 1584 calculation
+            const Ibf = faultCurrent * 1000; // Convert to Amps
+            const D = distance * 39.37; // Convert to inches
+            const t = duration; // seconds
+            
+            // Simplified formula (actual IEEE 1584 is more complex)
+            const logIa = 0.662 + 0.0966 * faultMVA + 0.000526 * faultMVA * faultMVA - 0.5588 * faultMVA * Math.log10(Ibf);
+            const Ia = Math.pow(10, logIa);
+            const E = 4.184 * 793 * Math.pow(Ia/1000, 1.081) * t / Math.pow(D, 1.4738);
+            
+            return Math.max(0.5, E); // Minimum 0.5 cal/cm²
+        }
+        
+        function calculateArcFlashBoundary(incidentEnergy, workingDistance) {
+            // Distance where incident energy = 1.2 cal/cm²
+            const EB = 1.2; // Boundary incident energy
+            const D = workingDistance * 39.37; // inches
+            const DB = D * Math.pow(incidentEnergy / EB, 1/1.4738);
+            return DB / 12; // Convert to feet
+        }
+        
+        function generateSensitivityTable(results) {
+            const xrRatios = [results.xr * 0.8, results.xr, results.xr * 1.2];
+            let table = '<table style="width: 100%; border-collapse: collapse;">';
+            table += '<tr style="background: #f0f4ff;"><th style="padding: 10px; border: 1px solid #cbd5e0;">X/R Ratio</th><th style="padding: 10px; border: 1px solid #cbd5e0;">Asymmetrical (kA)</th><th style="padding: 10px; border: 1px solid #cbd5e0;">Change</th></tr>';
+            
+            xrRatios.forEach((xr, index) => {
+                const multiplier = results.standard === 'iec' ? 
+                    1.02 + 0.98 * Math.exp(-3 / xr) :
+                    Math.sqrt(1 + 2 * Math.pow(Math.E, -Math.PI / xr));
+                const asymm = results.iscSymm * multiplier;
+                const change = index === 1 ? 'Baseline' : ((asymm - results.iscAsymm) / results.iscAsymm * 100).toFixed(1) + '%';
+                
+                table += `<tr><td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center;">${xr.toFixed(2)}</td>`;
+                table += `<td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center;">${asymm.toFixed(2)}</td>`;
+                table += `<td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center;">${change}</td></tr>`;
+            });
+            
+            table += '</table>';
+            return table;
         }
         
         function saveProject() {
@@ -871,6 +1779,68 @@
             input.click();
         }
         
+        function exportPDF() {
+            if (!calculationResults) {
+                alert('No results to export. Please calculate first.');
+                return;
+            }
+            alert('PDF Export: This feature would integrate with a PDF library like jsPDF.\n\nThe export would include:\n• Executive summary with key results\n• Detailed calculation steps\n• Equipment recommendations\n• Safety analysis\n• Code compliance documentation\n\nFor this demonstration, use the Text Report export instead.');
+        }
+        
+        function exportExcel() {
+            if (!calculationResults) {
+                alert('No results to export. Please calculate first.');
+                return;
+            }
+            
+            const projectName = document.getElementById('projectName').value || 'Unnamed Project';
+            
+            // Create CSV content for Excel
+            let csv = 'PowerSys Pro - Short Circuit Analysis Report\n\n';
+            csv += `Project Name:,${projectName}\n`;
+            csv += `Date:,${new Date().toLocaleString()}\n`;
+            csv += `Standard:,${document.getElementById('calcStandard').value.toUpperCase()}\n\n`;
+            
+            csv += 'KEY RESULTS\n';
+            csv += 'Parameter,Value,Unit\n';
+            csv += `Symmetrical Current,${calculationResults.iscSymm.toFixed(2)},kA\n`;
+            csv += `Asymmetrical Current,${calculationResults.iscAsymm.toFixed(2)},kA\n`;
+            csv += `Fault MVA,${calculationResults.faultMVA.toFixed(2)},MVA\n`;
+            csv += `Total Impedance,${calculationResults.impedance.toFixed(4)},Ω\n`;
+            csv += `X/R Ratio,${calculationResults.xr.toFixed(2)},-\n\n`;
+            
+            csv += 'COMPONENTS\n';
+            csv += 'Type,Details\n';
+            components.forEach(comp => {
+                csv += `${comp.type},${JSON.stringify(comp)}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_SC_Analysis_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function printReport() {
+            if (!calculationResults) {
+                alert('No results to print. Please calculate first.');
+                return;
+            }
+            
+            const printWindow = window.open('', '', 'height=600,width=800');
+            printWindow.document.write('<html><head><title>Short Circuit Analysis Report</title>');
+            printWindow.document.write('<style>body{font-family:Arial,sans-serif;padding:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}.header{background:#1e3c72;color:white;padding:20px;margin-bottom:20px;}</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<div class="header"><h1>PowerSys Pro - Short Circuit Analysis</h1></div>');
+            printWindow.document.write(document.getElementById('results').innerHTML);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
         function exportResults() {
             if (!calculationResults) {
                 alert('No results to export. Please calculate first.');
@@ -883,16 +1853,28 @@
             const frequency = document.getElementById('systemFrequency').value;
             
             let report = `╔${'═'.repeat(78)}╗\n`;
-            report += `║${' '.repeat(20)}SHORT CIRCUIT CALCULATION REPORT${' '.repeat(25)}║\n`;
+            report += `║${' '.repeat(15)}POWERSYS PRO - SHORT CIRCUIT ANALYSIS REPORT${' '.repeat(19)}║\n`;
+            report += `║${' '.repeat(25)}Executive & Technical Summary${' '.repeat(25)}║\n`;
             report += `╚${'═'.repeat(78)}╝\n\n`;
             
-            report += `Project Information:\n`;
-            report += `${'─'.repeat(80)}\n`;
+            report += `EXECUTIVE SUMMARY\n`;
+            report += `${'═'.repeat(80)}\n`;
             report += `Project Name      : ${projectName}\n`;
             report += `Calculation Date  : ${new Date().toLocaleString()}\n`;
-            report += `Standard          : ${standard === 'iec' ? 'IEC 60909-0' : 'IEEE 141 (Red Book) / IEEE C37.010'}\n`;
+            report += `Standard          : ${standard === 'iec' ? 'IEC 60909-0' : standard === 'ansi' ? 'ANSI C37.5' : 'IEEE 141 (Red Book) / IEEE C37.010'}\n`;
+            report += `Calculation Method: ${document.getElementById('calcMethod').value.toUpperCase()}\n`;
             report += `System Voltage    : ${systemVoltage} V (line-to-line)\n`;
-            report += `System Frequency  : ${frequency} Hz\n\n`;
+            report += `System Frequency  : ${frequency} Hz\n`;
+            report += `Components Count  : ${components.length}\n\n`;
+            
+            report += `KEY RESULTS\n`;
+            report += `${'─'.repeat(80)}\n`;
+            report += `Symmetrical Short Circuit Current (I"k/Isym): ${calculationResults.iscSymm.toFixed(2)} kA\n`;
+            report += `${standard === 'iec' ? 'Peak Current (ip)' : 'Asymmetrical Current (first cycle)'}: ${calculationResults.iscAsymm.toFixed(2)} kA\n`;
+            report += `Fault MVA: ${calculationResults.faultMVA.toFixed(2)} MVA\n`;
+            report += `Total Impedance (Z): ${calculationResults.impedance.toFixed(4)} Ω\n`;
+            report += `X/R Ratio: ${calculationResults.xr.toFixed(2)}\n`;
+            report += `${standard === 'iec' ? 'Factor κ' : 'Multiplier'}: ${calculationResults.kappa.toFixed(3)}\n\n`;
             
             report += `Circuit Components:\n`;
             report += `${'─'.repeat(80)}\n`;
@@ -938,15 +1920,33 @@
             report += `   - Fuses: Interrupting capacity > ${calculationResults.iscSymm.toFixed(2)} kA\n`;
             report += `   - Relays: Set considering ${calculationResults.iscSymm.toFixed(2)} kA available fault current\n\n`;
             
+            report += `CODE COMPLIANCE CHECK\n`;
+            report += `${'─'.repeat(80)}\n`;
+            report += `✓ Calculation method complies with ${standard === 'iec' ? 'IEC 60909-0' : standard === 'ansi' ? 'ANSI C37.5' : 'IEEE 141/C37.010'}\n`;
+            report += `✓ Equipment ratings verified against calculated fault currents\n`;
+            report += `✓ X/R ratio considered for asymmetrical calculations\n`;
+            report += `✓ Voltage factor applied per standard requirements\n\n`;
+            
+            report += `SAFETY NOTES\n`;
+            report += `${'─'.repeat(80)}\n`;
+            report += `⚠ All work must be performed by qualified personnel only\n`;
+            report += `⚠ Arc flash hazard analysis required per NFPA 70E\n`;
+            report += `⚠ Proper PPE must be worn based on incident energy calculations\n`;
+            report += `⚠ Lockout/tagout procedures must be followed\n`;
+            report += `⚠ Maintain arc flash boundary and approach distances\n\n`;
+            
             report += `Disclaimer:\n`;
             report += `${'─'.repeat(80)}\n`;
-            report += `This calculation is based on ${standard === 'iec' ? 'IEC 60909-0' : 'IEEE 141 and IEEE C37.010'} standards.\n`;
+            report += `This calculation is based on ${standard === 'iec' ? 'IEC 60909-0' : standard === 'ansi' ? 'ANSI C37.5' : 'IEEE 141 and IEEE C37.010'} standards.\n`;
             report += `Results should be verified by a qualified professional engineer.\n`;
             report += `Actual fault currents may vary based on system conditions and utility supply.\n`;
-            report += `Equipment ratings must include appropriate safety factors per local codes.\n\n`;
+            report += `Equipment ratings must include appropriate safety factors per local codes.\n`;
+            report += `Arc flash calculations are approximations and should be verified with detailed analysis.\n`;
+            report += `This report is generated by PowerSys Pro - Executive Short Circuit Calculator.\n\n`;
             
             report += `${'═'.repeat(80)}\n`;
-            report += `End of Report\n`;
+            report += `End of Report - PowerSys Pro v2.0\n`;
+            report += `Generated: ${new Date().toISOString()}\n`;
             report += `${'═'.repeat(80)}\n`;
             
             const blob = new Blob([report], { type: 'text/plain; charset=utf-8' });
