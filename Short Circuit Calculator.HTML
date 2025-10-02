@@ -1150,14 +1150,19 @@
         let hasUnsavedChanges = false;
         let projectHistory = [];
         
-        // Initialize IndexedDB with Dexie.js
-        const db = new Dexie('PowerSysProDB');
-        db.version(1).stores({
-            projects: '++id, name, created, modified',
-            equipmentDatabase: '++id, type, name',
-            settings: 'key',
-            calculationHistory: '++id, projectId, timestamp'
-        });
+        // Initialize IndexedDB with Dexie.js (if available)
+        let db = null;
+        if (typeof Dexie !== 'undefined') {
+            db = new Dexie('PowerSysProDB');
+            db.version(1).stores({
+                projects: '++id, name, created, modified',
+                equipmentDatabase: '++id, type, name',
+                settings: 'key',
+                calculationHistory: '++id, projectId, timestamp'
+            });
+        } else {
+            console.warn('Dexie.js not loaded - IndexedDB features disabled');
+        }
         
         /**
          * Initialize auto-save functionality
@@ -1231,6 +1236,10 @@
          * Save project to IndexedDB
          */
         async function saveToIndexedDB(projectData) {
+            if (!db) {
+                console.warn('IndexedDB not available');
+                return;
+            }
             try {
                 const existingProject = await db.projects.get(projectData.id);
                 if (existingProject) {
@@ -1249,6 +1258,7 @@
          * Load recent projects
          */
         async function loadRecentProjects() {
+            if (!db) return;
             try {
                 const projects = await db.projects.orderBy('modified').reverse().limit(10).toArray();
                 projectHistory = projects;
@@ -1287,6 +1297,10 @@
          * Load project by ID
          */
         async function loadProjectById(projectId) {
+            if (!db) {
+                showToast('IndexedDB not available', 'error');
+                return;
+            }
             try {
                 const project = await db.projects.get(projectId);
                 if (project) {
@@ -4038,6 +4052,12 @@
             const canvas = document.getElementById('faultContributionChart');
             if (!canvas) return;
             
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not loaded');
+                canvas.parentElement.innerHTML = '<p style="color: #888; text-align: center; padding: 50px;">Chart.js library not available</p>';
+                return;
+            }
+            
             if (faultContributionChart) {
                 faultContributionChart.destroy();
             }
@@ -4088,6 +4108,12 @@
         function createComparisonChart(perUnitData, pointToPointData) {
             const canvas = document.getElementById('comparisonChart');
             if (!canvas) return;
+            
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not loaded');
+                canvas.parentElement.innerHTML = '<p style="color: #888; text-align: center; padding: 50px;">Chart.js library not available</p>';
+                return;
+            }
             
             if (comparisonChart) {
                 comparisonChart.destroy();
