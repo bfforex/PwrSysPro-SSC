@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Short Circuit Calculator - IEC/IEEE Standards</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .standards-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .input-section, .results-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .info-text {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .component-list {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .component-item {
+            background: #e8eaf6;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .calculation-steps {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        
+        .result-value {
+            font-size: 1.8em;
+            color: #28a745;
+            font-weight: 700;
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .standard-selector {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Short Circuit Calculator</h1>
+            <p>Standards-Compliant Short Circuit Current Calculation</p>
+            <div style="margin-top: 10px;">
+                <span class="standards-badge">IEC 60909</span>
+                <span class="standards-badge">IEEE 141 (Red Book)</span>
+                <span class="standards-badge">IEEE C37</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <h2 class="section-title">Circuit Configuration</h2>
+                
+                <div class="standard-selector">
+                    <label>Calculation Standard:</label>
+                    <select id="calcStandard">
+                        <option value="iec">IEC 60909 (Europe/International)</option>
+                        <option value="ieee">IEEE 141/C37 (North America)</option>
+                    </select>
+                    <div class="info-text">Select the applicable standard for your region</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Project Name:</label>
+                    <input type="text" id="projectName" placeholder="Enter project name">
+                </div>
+                
+                <div class="form-group">
+                    <label>System Voltage (V):</label>
+                    <input type="number" id="systemVoltage" placeholder="e.g., 480" step="0.1">
+                    <div class="info-text">Line-to-line voltage at fault location</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>System Frequency (Hz):</label>
+                    <select id="systemFrequency">
+                        <option value="60">60 Hz (North America)</option>
+                        <option value="50">50 Hz (Europe/Asia)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Component Type:</label>
+                    <select id="componentType">
+                        <option value="transformer">Transformer</option>
+                        <option value="cable">Cable</option>
+                        <option value="generator">Generator</option>
+                        <option value="motor">Motor</option>
+                        <option value="utility_isc">Utility Source (ISC Known)</option>
+                        <option value="utility_mva">Utility Source (MVA Known)</option>
+                        <option value="utility_impedance">Utility Source (Impedance Known)</option>
+                    </select>
+                </div>
+                
+                <div id="componentInputs"></div>
+                
+                <button class="btn btn-primary" onclick="addComponent()">Add Component</button>
+                
+                <h3 class="section-title" style="margin-top: 30px;">Components</h3>
+                <div class="component-list" id="componentList">
+                    <p style="color: #999;">No components added yet</p>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-success" onclick="calculate()">Calculate</button>
+                    <button class="btn btn-secondary" onclick="saveProject()">Save Project</button>
+                    <button class="btn btn-secondary" onclick="loadProject()">Load Project</button>
+                    <button class="btn btn-secondary" onclick="exportResults()">Export Results</button>
+                </div>
+            </div>
+            
+            <div class="results-section">
+                <h2 class="section-title">Results</h2>
+                <div id="results">
+                    <p style="color: #999; text-align: center; padding: 50px 20px;">
+                        Add components and click Calculate to see results
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let components = [];
+        let calculationResults = null;
+        
+        const componentInputTemplates = {
+            transformer: `
+                <div class="form-group">
+                    <label>Rated Power (MVA):</label>
+                    <input type="number" id="compPower" placeholder="e.g., 1.5" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Impedance (%):</label>
+                    <input type="number" id="compImpedance" placeholder="e.g., 5.75" step="0.01">
+                    <div class="info-text">As per nameplate (typically at rated MVA)</div>
+                </div>
+                <div class="form-group">
+                    <label>Primary Voltage (kV):</label>
+                    <input type="number" id="compPrimaryV" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Secondary Voltage (kV):</label>
+                    <input type="number" id="compSecondaryV" placeholder="e.g., 0.48" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>R/X Ratio (optional):</label>
+                    <input type="number" id="compRX" placeholder="e.g., 0.1" step="0.01">
+                    <div class="info-text">Leave empty for typical value based on size</div>
+                </div>
+            `,
+            cable: `
+                <div class="form-group">
+                    <label>Length (meters):</label>
+                    <input type="number" id="compLength" placeholder="e.g., 100" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Resistance (Ω/km):</label>
+                    <input type="number" id="compResistance" placeholder="e.g., 0.387" step="0.001">
+                    <div class="info-text">R at operating temperature (typically 75-90°C)</div>
+                </div>
+                <div class="form-group">
+                    <label>Reactance (Ω/km):</label>
+                    <input type="number" id="compReactance" placeholder="e.g., 0.082" step="0.001">
+                    <div class="info-text">X at system frequency</div>
+                </div>
+                <div class="form-group">
+                    <label>Cable Type:</label>
+                    <select id="compCableType">
+                        <option value="single">Single Core</option>
+                        <option value="multi">Multi Core</option>
+                    </select>
+                </div>
+            `,
+            generator: `
+                <div class="form-group">
+                    <label>Rated Power (MVA):</label>
+                    <input type="number" id="compPower" placeholder="e.g., 2.0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Subtransient Reactance X"d (%):</label>
+                    <input type="number" id="compReactance" placeholder="e.g., 15" step="0.1">
+                    <div class="info-text">Direct-axis subtransient reactance from nameplate</div>
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 0.48" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>R/X Ratio:</label>
+                    <input type="number" id="compRX" placeholder="e.g., 0.05" step="0.01">
+                    <div class="info-text">Typical: 0.05-0.15 for synchronous generators</div>
+                </div>
+            `,
+            motor: `
+                <div class="form-group">
+                    <label>Rated Power (HP or kW):</label>
+                    <input type="number" id="compPower" placeholder="e.g., 100" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Power Unit:</label>
+                    <select id="compPowerUnit">
+                        <option value="hp">Horsepower (HP)</option>
+                        <option value="kw">Kilowatts (kW)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Locked Rotor Current (x FLA):</label>
+                    <input type="number" id="compLRC" placeholder="e.g., 6" step="0.1">
+                    <div class="info-text">Typically 5-7 for induction motors (Code Letter)</div>
+                </div>
+                <div class="form-group">
+                    <label>Rated Voltage (V):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 480" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Efficiency (%):</label>
+                    <input type="number" id="compEfficiency" placeholder="e.g., 90" step="0.1" value="90">
+                </div>
+                <div class="form-group">
+                    <label>Power Factor:</label>
+                    <input type="number" id="compPF" placeholder="e.g., 0.85" step="0.01" value="0.85">
+                </div>
+            `,
+            utility_isc: `
+                <div class="form-group">
+                    <label>Available Short Circuit Current (kA):</label>
+                    <input type="number" id="compISC" placeholder="e.g., 50" step="0.1">
+                    <div class="info-text">Three-phase fault current from utility</div>
+                </div>
+                <div class="form-group">
+                    <label>System Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>X/R Ratio:</label>
+                    <input type="number" id="compXR" placeholder="e.g., 10" step="0.1">
+                    <div class="info-text">Typical: 10-20 for utility systems</div>
+                </div>
+            `,
+            utility_mva: `
+                <div class="form-group">
+                    <label>Available Fault MVA:</label>
+                    <input type="number" id="compMVA" placeholder="e.g., 500" step="0.1">
+                    <div class="info-text">Three-phase fault MVA from utility</div>
+                </div>
+                <div class="form-group">
+                    <label>System Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>X/R Ratio:</label>
+                    <input type="number" id="compXR" placeholder="e.g., 10" step="0.1">
+                    <div class="info-text">Typical: 10-20 for utility systems</div>
+                </div>
+            `,
+            utility_impedance: `
+                <div class="form-group">
+                    <label>Source Impedance (%):</label>
+                    <input type="number" id="compImpedance" placeholder="e.g., 5" step="0.01">
+                    <div class="info-text">Percent impedance on base MVA</div>
+                </div>
+                <div class="form-group">
+                    <label>Base MVA:</label>
+                    <input type="number" id="compBaseMVA" placeholder="e.g., 100" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>System Voltage (kV):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 13.8" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>X/R Ratio:</label>
+                    <input type="number" id="compXR" placeholder="e.g., 10" step="0.1">
+                    <div class="info-text">Typical: 10-20 for utility systems</div>
+                </div>
+            `
+        };
+        
+        document.getElementById('componentType').addEventListener('change', function() {
+            document.getElementById('componentInputs').innerHTML = componentInputTemplates[this.value];
+        });
+        
+        document.getElementById('componentInputs').innerHTML = componentInputTemplates['transformer'];
+        
+        function addComponent() {
+            const type = document.getElementById('componentType').value;
+            const component = { type: type };
+            
+            if (type === 'transformer') {
+                component.power = parseFloat(document.getElementById('compPower').value);
+                component.impedance = parseFloat(document.getElementById('compImpedance').value);
+                component.primaryV = parseFloat(document.getElementById('compPrimaryV').value);
+                component.secondaryV = parseFloat(document.getElementById('compSecondaryV').value);
+                component.rx = document.getElementById('compRX').value ? parseFloat(document.getElementById('compRX').value) : null;
+            } else if (type === 'cable') {
+                component.length = parseFloat(document.getElementById('compLength').value);
+                component.resistance = parseFloat(document.getElementById('compResistance').value);
+                component.reactance = parseFloat(document.getElementById('compReactance').value);
+                component.cableType = document.getElementById('compCableType').value;
+            } else if (type === 'generator') {
+                component.power = parseFloat(document.getElementById('compPower').value);
+                component.reactance = parseFloat(document.getElementById('compReactance').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.rx = parseFloat(document.getElementById('compRX').value);
+            } else if (type === 'motor') {
+                component.power = parseFloat(document.getElementById('compPower').value);
+                component.powerUnit = document.getElementById('compPowerUnit').value;
+                component.lrc = parseFloat(document.getElementById('compLRC').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.efficiency = parseFloat(document.getElementById('compEfficiency').value);
+                component.pf = parseFloat(document.getElementById('compPF').value);
+            } else if (type === 'utility_isc') {
+                component.isc = parseFloat(document.getElementById('compISC').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.xr = parseFloat(document.getElementById('compXR').value);
+            } else if (type === 'utility_mva') {
+                component.mva = parseFloat(document.getElementById('compMVA').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.xr = parseFloat(document.getElementById('compXR').value);
+            } else if (type === 'utility_impedance') {
+                component.impedance = parseFloat(document.getElementById('compImpedance').value);
+                component.baseMVA = parseFloat(document.getElementById('compBaseMVA').value);
+                component.voltage = parseFloat(document.getElementById('compVoltage').value);
+                component.xr = parseFloat(document.getElementById('compXR').value);
+            }
+            
+            components.push(component);
+            updateComponentList();
+        }
+        
+        function updateComponentList() {
+            const list = document.getElementById('componentList');
+            if (components.length === 0) {
+                list.innerHTML = '<p style="color: #999;">No components added yet</p>';
+                return;
+            }
+            
+            list.innerHTML = components.map((comp, index) => {
+                let details = '';
+                if (comp.type === 'transformer') {
+                    details = `${comp.power} MVA, ${comp.impedance}% Z`;
+                } else if (comp.type === 'cable') {
+                    details = `${comp.length}m, R=${comp.resistance} Ω/km, X=${comp.reactance} Ω/km`;
+                } else if (comp.type === 'generator') {
+                    details = `${comp.power} MVA, X"d=${comp.reactance}%`;
+                } else if (comp.type === 'motor') {
+                    details = `${comp.power} ${comp.powerUnit.toUpperCase()}, LRC=${comp.lrc}x`;
+                } else if (comp.type === 'utility_isc') {
+                    details = `${comp.isc} kA, X/R=${comp.xr}`;
+                } else if (comp.type === 'utility_mva') {
+                    details = `${comp.mva} MVA, X/R=${comp.xr}`;
+                } else if (comp.type === 'utility_impedance') {
+                    details = `${comp.impedance}% on ${comp.baseMVA} MVA base`;
+                }
+                
+                return `
+                    <div class="component-item">
+                        <span><strong>${comp.type.toUpperCase().replace(/_/g, ' ')}</strong>: ${details}</span>
+                        <button class="btn btn-danger" onclick="removeComponent(${index})">Remove</button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function removeComponent(index) {
+            components.splice(index, 1);
+            updateComponentList();
+        }
+        
+        function getTypicalRXRatio(type, power) {
+            // IEEE and IEC typical R/X ratios
+            if (type === 'transformer') {
+                if (power < 1) return 0.05; // Small transformers
+                if (power < 5) return 0.07;
+                if (power < 10) return 0.1;
+                return 0.15; // Large transformers
+            }
+            return 0.1; // Default
+        }
+        
+        function calculate() {
+            const systemVoltage = parseFloat(document.getElementById('systemVoltage').value);
+            const standard = document.getElementById('calcStandard').value;
+            const frequency = parseFloat(document.getElementById('systemFrequency').value);
+            
+            if (!systemVoltage || components.length === 0) {
+                alert('Please enter system voltage and add at least one component');
+                return;
+            }
+            
+            const steps = [];
+            let totalImpedance = { r: 0, x: 0 };
+            const baseVoltage = systemVoltage / 1000;
+            const baseMVA = 100;
+            
+            // Voltage factor c per IEC 60909
+            let cFactor = 1.0;
+            if (standard === 'iec') {
+                if (systemVoltage <= 1000) {
+                    cFactor = 1.05; // Low voltage
+                } else if (systemVoltage <= 35000) {
+                    cFactor = 1.1; // Medium voltage
+                } else {
+                    cFactor = 1.1; // High voltage
+                }
+            } else {
+                // IEEE uses multipliers based on voltage level
+                cFactor = systemVoltage <= 600 ? 1.0 : 1.05;
+            }
+            
+            steps.push({
+                title: `Calculation Standard: ${standard === 'iec' ? 'IEC 60909' : 'IEEE 141/C37'}`,
+                content: `Base MVA = ${baseMVA} MVA<br>Base Voltage = ${baseVoltage} kV<br>System Frequency = ${frequency} Hz<br>Base Impedance Zb = V²/S = ${(baseVoltage * baseVoltage / baseMVA).toFixed(4)} Ω<br>Voltage Factor c = ${cFactor} (per ${standard.toUpperCase()} standard)`
+            });
+            
+            components.forEach((comp, index) => {
+                if (comp.type === 'transformer') {
+                    const zBase = (comp.secondaryV * comp.secondaryV) / baseMVA;
+                    const zPU = (comp.impedance / 100) * (baseMVA / comp.power);
+                    
+                    // Determine R/X ratio
+                    let rxRatio = comp.rx !== null ? comp.rx : getTypicalRXRatio('transformer', comp.power);
+                    
+                    // Calculate R and X from Z and R/X ratio
+                    // Z² = R² + X², R = X × (R/X)
+                    const xPU = zPU / Math.sqrt(1 + rxRatio * rxRatio);
+                    const rPU = xPU * rxRatio;
+                    
+                    totalImpedance.r += rPU * zBase;
+                    totalImpedance.x += xPU * zBase;
+                    
+                    steps.push({
+                        title: `Transformer ${index + 1} (Per ${standard.toUpperCase()})`,
+                        content: `Rated: ${comp.power} MVA, ${comp.primaryV}/${comp.secondaryV} kV<br>Impedance: ${comp.impedance}%<br>R/X Ratio: ${rxRatio.toFixed(3)} ${comp.rx === null ? '(typical)' : '(specified)'}<br>Zbase = ${zBase.toFixed(4)} Ω<br>Z(pu) = ${comp.impedance}% × (${baseMVA}/${comp.power}) = ${zPU.toFixed(4)} pu<br>X(pu) = ${xPU.toFixed(4)} pu → ${(xPU * zBase).toFixed(4)} Ω<br>R(pu) = ${rPU.toFixed(4)} pu → ${(rPU * zBase).toFixed(4)} Ω`
+                    });
+                } else if (comp.type === 'cable') {
+                    const r = comp.resistance * comp.length / 1000;
+                    const x = comp.reactance * comp.length / 1000;
+                    
+                    totalImpedance.r += r;
+                    totalImpedance.x += x;
+                    
+                    steps.push({
+                        title: `Cable ${index + 1} (Per ${standard.toUpperCase()})`,
+                        content: `Type: ${comp.cableType === 'single' ? 'Single Core' : 'Multi Core'}<br>Length: ${comp.length} m<br>R = ${comp.resistance} Ω/km × ${comp.length/1000} km = ${r.toFixed(4)} Ω<br>X = ${comp.reactance} Ω/km × ${comp.length/1000} km = ${x.toFixed(4)} Ω<br>Note: Values should be at operating temperature`
+                    });
+                } else if (comp.type === 'generator') {
+                    const zBase = (comp.voltage * comp.voltage) / baseMVA;
+                    const xdPU = (comp.reactance / 100) * (baseMVA / comp.power);
+                    
+                    const rxRatio = comp.rx;
+                    const xPU = xdPU / Math.sqrt(1 + rxRatio * rxRatio);
+                    const rPU = xPU * rxRatio;
+                    
+                    totalImpedance.r += rPU * zBase;
+                    totalImpedance.x += xPU * zBase;
+                    
+                    steps.push({
+                        title: `Generator ${index + 1} (Per ${standard.toUpperCase()})`,
+                        content: `Rated: ${comp.power} MVA, ${comp.voltage} kV<br>X"d (Subtransient): ${comp.reactance}%<br>R/X Ratio: ${rxRatio}<br>Zbase = ${zBase.toFixed(4)} Ω<br>X"d(pu) = ${comp.reactance}% × (${baseMVA}/${comp.power}) = ${xdPU.toFixed(4)} pu<br>X(actual) = ${(xPU * zBase).toFixed(4)} Ω<br>R(actual) = ${(rPU * zBase).toFixed(4)} Ω`
+                    });
+                } else if (comp.type === 'motor') {
+                    const powerKW = comp.powerUnit === 'hp' ? comp.power * 0.746 : comp.power;
+                    const eff = comp.efficiency / 100;
+                    const pf = comp.pf;
+                    
+                    // Full load current
+                    const fla = (powerKW * 1000) / (Math.sqrt(3) * comp.voltage * eff * pf);
+                    const lra = fla * comp.lrc;
+                    
+                    // Motor impedance at locked rotor
+                    const zMotor = (comp.voltage / Math.sqrt(3)) / lra;
+                    
+                    // Motors are highly reactive at locked rotor, typical X/R = 10-20
+                    const motorXR = 15; // Typical for locked rotor
+                    const xMotor = zMotor / Math.sqrt(1 + 1/(motorXR * motorXR));
+                    const rMotor = xMotor / motorXR;
+                    
+                    totalImpedance.r += rMotor;
+                    totalImpedance.x += xMotor;
+                    
+                    steps.push({
+                        title: `Motor ${index + 1} (Per ${standard.toUpperCase()})`,
+                        content: `Rated: ${comp.power} ${comp.powerUnit.toUpperCase()} (${powerKW.toFixed(2)} kW)<br>Efficiency: ${comp.efficiency}%, Power Factor: ${pf}<br>FLA = ${powerKW}×1000 / (√3 × ${comp.voltage} × ${eff} × ${pf}) = ${fla.toFixed(2)} A<br>LRA = FLA × ${comp.lrc} = ${lra.toFixed(2)} A<br>Zlocked = ${comp.voltage}/√3 / ${lra.toFixed(2)} = ${zMotor.toFixed(4)} Ω<br>X/R ≈ ${motorXR} (typical locked rotor)<br>X = ${xMotor.toFixed(4)} Ω, R = ${rMotor.toFixed(4)} Ω`
+                    });
+                } else if (comp.type === 'utility_isc') {
+                    // Calculate impedance from short circuit current
+                    const z = (comp.voltage * 1000) / (Math.sqrt(3) * comp.isc * 1000);
+                    const x = z * comp.xr / Math.sqrt(1 + comp.xr * comp.xr);
+                    const r = z / Math.sqrt(1 + comp.xr * comp.xr);
+                    
+                    totalImpedance.r += r;
+                    totalImpedance.x += x;
+                    
+                    steps.push({
+                        title: `Utility Source ${index + 1} - ISC Method (Per ${standard.toUpperCase()})`,
+                        content: `Available ISC: ${comp.isc} kA (3-phase)<br>System Voltage: ${comp.voltage} kV<br>X/R Ratio: ${comp.xr}<br>Zsource = V/(√3 × ISC) = ${comp.voltage}/(√3 × ${comp.isc}) = ${z.toFixed(4)} Ω<br>From X/R ratio:<br>R = Z/√(1 + (X/R)²) = ${r.toFixed(4)} Ω<br>X = Z × (X/R)/√(1 + (X/R)²) = ${x.toFixed(4)} Ω`
+                    });
+                } else if (comp.type === 'utility_mva') {
+                    // Calculate impedance from fault MVA
+                    const isc = (comp.mva * 1000) / (Math.sqrt(3) * comp.voltage*1000);
+                    const z = (comp.voltage * 1000) / (Math.sqrt(3) * isc * 1000);
+                    const x = z * comp.xr / Math.sqrt(1 + comp.xr * comp.xr);
+                    const r = z / Math.sqrt(1 + comp.xr * comp.xr);
+                    
+                    totalImpedance.r += r;
+                    totalImpedance.x += x;
+                    
+                    steps.push({
+                        title: `Utility Source ${index + 1} - MVA Method (Per ${standard.toUpperCase()})`,
+                        content: `Available Fault MVA: ${comp.mva} MVA<br>System Voltage: ${comp.voltage} kV<br>X/R Ratio: ${comp.xr}<br>ISC = MVA/(√3 × V) = ${comp.mva}/(√3 × ${comp.voltage}) = ${isc.toFixed(2)} kA<br>Zsource = V/(√3 × ISC) = ${z.toFixed(4)} Ω<br>From X/R ratio:<br>R = ${r.toFixed(4)} Ω<br>X = ${x.toFixed(4)} Ω`
+                    });
+                } else if (comp.type === 'utility_impedance') {
+                    // Calculate impedance from percent impedance
+                    const zBase = (comp.voltage * comp.voltage) / comp.baseMVA;
+                    const zPU = comp.impedance / 100;
+                    const z = zPU * zBase;
+                    const x = z * comp.xr / Math.sqrt(1 + comp.xr * comp.xr);
+                    const r = z / Math.sqrt(1 + comp.xr * comp.xr);
+                    
+                    totalImpedance.r += r;
+                    totalImpedance.x += x;
+                    
+                    steps.push({
+                        title: `Utility Source ${index + 1} - Impedance Method (Per ${standard.toUpperCase()})`,
+                        content: `Source Impedance: ${comp.impedance}% on ${comp.baseMVA} MVA base<br>System Voltage: ${comp.voltage} kV<br>X/R Ratio: ${comp.xr}<br>Zbase = V²/MVAbase = ${comp.voltage}²/${comp.baseMVA} = ${zBase.toFixed(4)} Ω<br>Zsource = ${comp.impedance}% × ${zBase.toFixed(4)} = ${z.toFixed(4)} Ω<br>From X/R ratio:<br>R = ${r.toFixed(4)} Ω<br>X = ${x.toFixed(4)} Ω`
+                    });
+                }
+            });
+            
+            const totalZ = Math.sqrt(totalImpedance.r * totalImpedance.r + totalImpedance.x * totalImpedance.x);
+            const totalXR = totalImpedance.x / totalImpedance.r;
+            
+            steps.push({
+                title: 'Total Circuit Impedance',
+                content: `ΣR = ${totalImpedance.r.toFixed(4)} Ω<br>ΣX = ${totalImpedance.x.toFixed(4)} Ω<br>Ztotal = √(R² + X²) = √(${totalImpedance.r.toFixed(4)}² + ${totalImpedance.x.toFixed(4)}²) = ${totalZ.toFixed(4)} Ω<br>X/R Ratio = ${totalXR.toFixed(2)}`
+            });
+            
+            // Calculate symmetrical short circuit current
+            const vPhase = (systemVoltage * cFactor) / Math.sqrt(3);
+            const iscSymm = vPhase / totalZ;
+            const iscSymmKA = iscSymm / 1000;
+            
+            // Calculate asymmetrical (peak) current per standard
+            let iscAsymm, iscAsymmKA, kappa, multiplier;
+            if (standard === 'iec') {
+                // IEC 60909: ip = κ × √2 × I"k
+                kappa = 1.02 + 0.98 * Math.exp(-3 * totalImpedance.r / totalImpedance.x);
+                iscAsymm = kappa * Math.sqrt(2) * iscSymm;
+                iscAsymmKA = iscAsymm / 1000;
+                multiplier = kappa; // For result storage
+                
+                steps.push({
+                    title: 'Short Circuit Current Calculation (IEC 60909)',
+                    content: `Symmetrical (RMS) Current I"k:<br>I"k = (c × Vn)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>I"k = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Peak Current ip (per IEC 60909-0):<br>κ = 1.02 + 0.98 × e^(-3R/X) = 1.02 + 0.98 × e^(-3×${totalImpedance.r.toFixed(4)}/${totalImpedance.x.toFixed(4)})<br>κ = ${kappa.toFixed(3)}<br>ip = κ × √2 × I"k = ${kappa.toFixed(3)} × 1.414 × ${iscSymmKA.toFixed(2)}<br>ip = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
+                });
+            } else {
+                // IEEE: Asymmetrical = Symmetrical × multiplier based on X/R
+                multiplier = Math.sqrt(1 + 2 * Math.pow(Math.E, -Math.PI / totalXR));
+                iscAsymm = iscSymm * multiplier;
+                iscAsymmKA = iscAsymm / 1000;
+                kappa = multiplier; // For result storage
+                
+                steps.push({
+                    title: 'Short Circuit Current Calculation (IEEE 141/C37)',
+                    content: `Symmetrical RMS Current:<br>Isym = (c × V)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>Isym = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Asymmetrical (First Cycle) Current (per IEEE):<br>Multiplier = √(1 + 2e^(-π/(X/R))) = √(1 + 2e^(-π/${totalXR.toFixed(2)}))<br>Multiplier = ${multiplier.toFixed(3)}<br>Iasym = Isym × ${multiplier.toFixed(3)} = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
+                });
+            }
+            
+            // Calculate fault MVA
+            const faultMVA = (Math.sqrt(3) * systemVoltage * iscSymm) / 1000000;
+            
+            steps.push({
+                title: 'Fault MVA',
+                content: `MVAsc = √3 × V × I"k / 1000<br>MVAsc = √3 × ${systemVoltage} × ${iscSymmKA.toFixed(2)}<br>MVAsc = <strong>${faultMVA.toFixed(2)} MVA</strong>`
+            });
+            
+            // Equipment duty considerations
+            const dcComponent = iscAsymm - iscSymm;
+            const dcComponentKA = dcComponent / 1000;
+            
+            steps.push({
+                title: 'Equipment Duty Considerations',
+                content: `DC Component (first half-cycle):<br>IDC ≈ ${dcComponentKA.toFixed(2)} kA<br><br>Time constant τ = L/R = (X/ωR):<br>τ = ${totalImpedance.x.toFixed(4)}/(2π × ${frequency} × ${totalImpedance.r.toFixed(4)}) = ${(totalImpedance.x / (2 * Math.PI * frequency * totalImpedance.r)).toFixed(4)} seconds<br><br>Notes per ${standard === 'iec' ? 'IEC 60909' : 'IEEE C37'}:<br>- Circuit breakers must interrupt symmetrical current<br>- Peak current is used for mechanical withstand<br>- X/R ratio affects interrupting duty and arcing time`
+            });
+            
+            calculationResults = { 
+                steps, 
+                iscSymm: iscSymmKA, 
+                iscAsymm: iscAsymmKA,
+                impedance: totalZ,
+                xr: totalXR,
+                faultMVA: faultMVA,
+                standard: standard,
+                kappa: standard === 'iec' ? kappa : multiplier
+            };
+            displayResults();
+        }
+        
+        function displayResults() {
+            if (!calculationResults) return;
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="result-value">
+                    Symmetrical ISC: ${calculationResults.iscSymm.toFixed(2)} kA<br>
+                    <span style="font-size: 0.6em; color: #dc3545;">
+                        ${calculationResults.standard === 'iec' ? 'Peak' : 'Asymmetrical'}: ${calculationResults.iscAsymm.toFixed(2)} kA
+                    </span>
+                </div>
+                <div class="warning-box">
+                    <strong>⚠️ Important:</strong> Results are based on ${calculationResults.standard === 'iec' ? 'IEC 60909' : 'IEEE 141/C37.010'} standard. 
+                    X/R ratio: ${calculationResults.xr.toFixed(2)} | Fault MVA: ${calculationResults.faultMVA.toFixed(2)} MVA
+                </div>
+                <div class="calculation-steps">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">Step-by-Step Calculation</h3>
+                    ${calculationResults.steps.map(step => `
+                        <div class="step">
+                            <div class="step-title">${step.title}</div>
+                            <div>${step.content}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function saveProject() {
+            const projectName = document.getElementById('projectName').value || 'Unnamed Project';
+            const systemVoltage = document.getElementById('systemVoltage').value;
+            const standard = document.getElementById('calcStandard').value;
+            const frequency = document.getElementById('systemFrequency').value;
+            
+            const project = {
+                name: projectName,
+                systemVoltage: systemVoltage,
+                standard: standard,
+                frequency: frequency,
+                components: components,
+                results: calculationResults,
+                version: '2.0',
+                date: new Date().toISOString()
+            };
+            
+            const projectData = JSON.stringify(project, null, 2);
+            const blob = new Blob([projectData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function loadProject() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const project = JSON.parse(event.target.result);
+                    document.getElementById('projectName').value = project.name;
+                    document.getElementById('systemVoltage').value = project.systemVoltage;
+                    document.getElementById('calcStandard').value = project.standard || 'iec';
+                    document.getElementById('systemFrequency').value = project.frequency || '60';
+                    components = project.components;
+                    calculationResults = project.results;
+                    updateComponentList();
+                    if (calculationResults) displayResults();
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        function exportResults() {
+            if (!calculationResults) {
+                alert('No results to export. Please calculate first.');
+                return;
+            }
+            
+            const projectName = document.getElementById('projectName').value || 'Unnamed Project';
+            const systemVoltage = document.getElementById('systemVoltage').value;
+            const standard = document.getElementById('calcStandard').value;
+            const frequency = document.getElementById('systemFrequency').value;
+            
+            let report = `╔${'═'.repeat(78)}╗\n`;
+            report += `║${' '.repeat(20)}SHORT CIRCUIT CALCULATION REPORT${' '.repeat(25)}║\n`;
+            report += `╚${'═'.repeat(78)}╝\n\n`;
+            
+            report += `Project Information:\n`;
+            report += `${'─'.repeat(80)}\n`;
+            report += `Project Name      : ${projectName}\n`;
+            report += `Calculation Date  : ${new Date().toLocaleString()}\n`;
+            report += `Standard          : ${standard === 'iec' ? 'IEC 60909-0' : 'IEEE 141 (Red Book) / IEEE C37.010'}\n`;
+            report += `System Voltage    : ${systemVoltage} V (line-to-line)\n`;
+            report += `System Frequency  : ${frequency} Hz\n\n`;
+            
+            report += `Circuit Components:\n`;
+            report += `${'─'.repeat(80)}\n`;
+            components.forEach((comp, index) => {
+                report += `\n${index + 1}. ${comp.type.toUpperCase().replace(/_/g, ' ')}\n`;
+                Object.keys(comp).forEach(key => {
+                    if (key !== 'type') {
+                        report += `   ${key.padEnd(15)}: ${comp[key]}\n`;
+                    }
+                });
+            });
+            
+            report += `\n\nDetailed Calculation Steps:\n`;
+            report += `${'═'.repeat(80)}\n`;
+            calculationResults.steps.forEach((step, index) => {
+                report += `\n${index + 1}. ${step.title}\n`;
+                report += `${'-'.repeat(80)}\n`;
+                const content = step.content.replace(/<br>/g, '\n   ').replace(/<strong>/g, '').replace(/<\/strong>/g, '');
+                report += `   ${content}\n`;
+            });
+            
+            report += `\n\n${'═'.repeat(80)}\n`;
+            report += `FINAL RESULTS (per ${standard === 'iec' ? 'IEC 60909' : 'IEEE 141/C37'})\n`;
+            report += `${'═'.repeat(80)}\n`;
+            report += `Symmetrical Short Circuit Current (I"k or Isym): ${calculationResults.iscSymm.toFixed(2)} kA\n`;
+            report += `${standard === 'iec' ? 'Peak Current (ip)' : 'Asymmetrical Current (first cycle)'}: ${calculationResults.iscAsymm.toFixed(2)} kA\n`;
+            report += `Total Impedance (Z): ${calculationResults.impedance.toFixed(4)} Ω\n`;
+            report += `X/R Ratio: ${calculationResults.xr.toFixed(2)}\n`;
+            report += `Fault MVA: ${calculationResults.faultMVA.toFixed(2)} MVA\n`;
+            report += `${standard === 'iec' ? 'Factor κ' : 'Multiplier'}: ${calculationResults.kappa.toFixed(3)}\n`;
+            report += `${'═'.repeat(80)}\n\n`;
+            
+            report += `Equipment Selection Guidelines:\n`;
+            report += `${'─'.repeat(80)}\n`;
+            report += `1. Circuit Breakers:\n`;
+            report += `   - Interrupting Rating: Must exceed ${calculationResults.iscSymm.toFixed(2)} kA (symmetrical)\n`;
+            report += `   - Momentary/Close & Latch Rating: Must exceed ${calculationResults.iscAsymm.toFixed(2)} kA\n`;
+            report += `   - Consider X/R ratio (${calculationResults.xr.toFixed(2)}) for duty calculations\n\n`;
+            report += `2. Buses and Switchgear:\n`;
+            report += `   - Short-time withstand: ${calculationResults.iscSymm.toFixed(2)} kA for specified duration\n`;
+            report += `   - Peak withstand: ${calculationResults.iscAsymm.toFixed(2)} kA\n\n`;
+            report += `3. Protective Devices:\n`;
+            report += `   - Fuses: Interrupting capacity > ${calculationResults.iscSymm.toFixed(2)} kA\n`;
+            report += `   - Relays: Set considering ${calculationResults.iscSymm.toFixed(2)} kA available fault current\n\n`;
+            
+            report += `Disclaimer:\n`;
+            report += `${'─'.repeat(80)}\n`;
+            report += `This calculation is based on ${standard === 'iec' ? 'IEC 60909-0' : 'IEEE 141 and IEEE C37.010'} standards.\n`;
+            report += `Results should be verified by a qualified professional engineer.\n`;
+            report += `Actual fault currents may vary based on system conditions and utility supply.\n`;
+            report += `Equipment ratings must include appropriate safety factors per local codes.\n\n`;
+            
+            report += `${'═'.repeat(80)}\n`;
+            report += `End of Report\n`;
+            report += `${'═'.repeat(80)}\n`;
+            
+            const blob = new Blob([report], { type: 'text/plain; charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_SC_Report_${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
