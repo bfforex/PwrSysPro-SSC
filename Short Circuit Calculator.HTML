@@ -3336,6 +3336,177 @@
             displayResults();
         }
         
+        function generateXRPipelineDisplay(standard) {
+            if (standard === 'iec') return ''; // Only for ANSI/IEEE
+            
+            // Collect X/R contributions from each component
+            let contributions = [];
+            let totalR = 0, totalX = 0;
+            
+            components.forEach((comp, index) => {
+                let compR = 0, compX = 0, xr = 0;
+                
+                if (comp.type === 'utility_isc' || comp.type === 'utility_mva' || comp.type === 'utility_impedance') {
+                    xr = comp.xr || 10;
+                    contributions.push({
+                        name: `Source ${index + 1}`,
+                        xr: xr,
+                        type: 'source'
+                    });
+                } else if (comp.type === 'transformer') {
+                    xr = comp.rx ? (1 / comp.rx) : 10;
+                    contributions.push({
+                        name: `Transformer ${index + 1}`,
+                        xr: xr,
+                        type: 'transformer'
+                    });
+                } else if (comp.type === 'cable') {
+                    const r = comp.resistance * comp.length / 1000;
+                    const x = comp.reactance * comp.length / 1000;
+                    xr = x / r;
+                    contributions.push({
+                        name: `Cable ${index + 1}`,
+                        xr: xr,
+                        type: 'cable'
+                    });
+                } else if (comp.type === 'generator') {
+                    xr = comp.rx ? (1 / comp.rx) : 10;
+                    contributions.push({
+                        name: `Generator ${index + 1}`,
+                        xr: xr,
+                        type: 'generator'
+                    });
+                }
+            });
+            
+            let html = `
+                <div style="background: #f0f9ff; padding: 20px; border-radius: 12px; margin-top: 20px; border: 2px solid #0284c7;">
+                    <h4 style="color: #0c4a6e; margin-bottom: 15px;">📊 X/R Ratio Pipeline (ANSI/IEEE Analysis)</h4>
+                    
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <strong>Component X/R Contributions:</strong>
+                        <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                            <tr style="background: #f0f9ff; font-weight: 600;">
+                                <td style="padding: 8px; border: 1px solid #cbd5e0;">Component</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e0;">Type</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e0;">X/R Ratio</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e0;">Impact</td>
+                            </tr>
+            `;
+            
+            contributions.forEach(contrib => {
+                const impact = contrib.xr > 15 ? 'High reactance' : contrib.xr < 5 ? 'High resistance' : 'Balanced';
+                html += `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0;">${contrib.name}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0;">${contrib.type}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0;">${contrib.xr.toFixed(2)}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0;">${impact}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </table>
+                    </div>
+                    
+                    <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fbbf24;">
+                        <strong style="color: #92400e;">Understanding X/R Ratios:</strong><br>
+                        <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8; font-size: 0.9em;">
+                            <li><strong>Utility Sources:</strong> Typically 10-20 (highly inductive)</li>
+                            <li><strong>Transformers:</strong> Typically 7-15 (inductive)</li>
+                            <li><strong>Cables:</strong> Typically 0.5-3 (more resistive)</li>
+                            <li><strong>Generators:</strong> Typically 10-40 (highly inductive)</li>
+                            <li><strong>High X/R (>17):</strong> May require special CB ratings</li>
+                            <li><strong>Low X/R (<3):</strong> Lower asymmetry, faster decay</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+        
+        function generateEquipmentDutyRecommendations(results) {
+            const systemVoltage = parseFloat(document.getElementById('systemVoltage').value);
+            
+            // Determine standard circuit breaker frame sizes
+            const standardFrames = [225, 400, 600, 800, 1200, 1600, 2000, 2500, 3200, 4000, 5000, 6000];
+            const requiredKA = results.iscSymm;
+            
+            // Find next standard frame size with 25% margin
+            const requiredWithMargin = requiredKA * 1.25;
+            let recommendedFrame = standardFrames.find(frame => frame / 10 >= requiredWithMargin);
+            if (!recommendedFrame) recommendedFrame = 'Custom > 60kA';
+            
+            // Calculate asymmetrical multiplier for first cycle
+            const asymmMultiplier = results.iscAsymm / results.iscSymm;
+            
+            // Equipment recommendations
+            let html = `
+                <div style="background: #f0fdf4; padding: 20px; border-radius: 12px; margin-top: 20px; border: 2px solid #10b981;">
+                    <h4 style="color: #065f46; margin-bottom: 15px;">🔌 Equipment Duty & Recommendations</h4>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="background: white; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #1e3c72;">Circuit Breakers</strong><br>
+                            <div style="margin-top: 10px; line-height: 1.8;">
+                                • <strong>Interrupting Rating:</strong> ${requiredKA.toFixed(1)} kA minimum<br>
+                                • <strong>Recommended Frame:</strong> ${recommendedFrame} kA<br>
+                                • <strong>Asymmetrical Factor:</strong> ${asymmMultiplier.toFixed(2)}<br>
+                                • <strong>Margin:</strong> 25% safety factor included<br>
+                                ${results.xr > 17 ? '• ⚠️ <strong>High X/R:</strong> Verify with manufacturer for X/R capability' : ''}
+                            </div>
+                        </div>
+                        
+                        <div style="background: white; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #1e3c72;">Bus & Conductors</strong><br>
+                            <div style="margin-top: 10px; line-height: 1.8;">
+                                • <strong>Momentary Rating:</strong> ${results.iscAsymm.toFixed(1)} kA peak<br>
+                                • <strong>1-Second Rating:</strong> ${(requiredKA * 1.1).toFixed(1)} kA<br>
+                                • <strong>Bracing Force:</strong> Calculate per IEEE 605<br>
+                                • <strong>Temperature Rise:</strong> Consider continuous load
+                            </div>
+                        </div>
+                        
+                        <div style="background: white; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #1e3c72;">Switchgear & Panels</strong><br>
+                            <div style="margin-top: 10px; line-height: 1.8;">
+                                • <strong>Short Circuit Rating:</strong> ${requiredKA.toFixed(1)} kA minimum<br>
+                                • <strong>Standard Ratings:</strong> 22kA, 35kA, 42kA, 65kA, 85kA<br>
+                                • <strong>Arc Flash Label:</strong> Required per NFPA 70E<br>
+                                • <strong>Verify:</strong> Both symmetrical and asymmetrical ratings
+                            </div>
+                        </div>
+                        
+                        <div style="background: white; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #1e3c72;">Transformers</strong><br>
+                            <div style="margin-top: 10px; line-height: 1.8;">
+                                • <strong>Through-Fault:</strong> ${requiredKA.toFixed(1)} kA<br>
+                                • <strong>Category:</strong> ${requiredKA < 25 ? 'I' : requiredKA < 50 ? 'II' : requiredKA < 75 ? 'III' : 'IV'} per ANSI C57.12.00<br>
+                                • <strong>Withstand Time:</strong> 2 seconds typical<br>
+                                • <strong>Protection:</strong> Consider current-limiting fuses
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #fffbeb; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #fbbf24;">
+                        <strong style="color: #92400e;">📋 Additional Considerations:</strong><br>
+                        <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                            <li>Coordinate protective devices for selective operation</li>
+                            <li>Verify equipment ratings at operating temperature</li>
+                            <li>Consider future expansion (typically 25-30% margin)</li>
+                            <li>Review manufacturer data sheets for specific ratings</li>
+                            <li>Comply with NEC Articles 110.9, 110.10, and 110.24</li>
+                            <li>Update arc flash labels if system changes</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+        
         function displayResults() {
             if (!calculationResults) return;
             
@@ -3379,6 +3550,10 @@
                     • Verify equipment ratings include appropriate safety factors per local codes
                 </div>
                 
+                ${generateEquipmentDutyRecommendations(calculationResults)}
+                
+                ${generateXRPipelineDisplay(calculationResults.standard)}
+                
                 <div class="calculation-steps">
                     <h3 style="color: #1e3c72; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 1.5em;">🔢</span>
@@ -3413,38 +3588,132 @@
         function displayComparison() {
             if (!perUnitResults || !pointToPointResults) return;
             
+            // Calculate percentage differences
+            const symmDiff = Math.abs((perUnitResults.iscSymm - pointToPointResults.iscSymm) / perUnitResults.iscSymm * 100);
+            const asymmDiff = Math.abs((perUnitResults.iscAsymm - pointToPointResults.iscAsymm) / perUnitResults.iscAsymm * 100);
+            const mvaDiff = Math.abs((perUnitResults.faultMVA - pointToPointResults.faultMVA) / perUnitResults.faultMVA * 100);
+            const impedanceDiff = Math.abs((perUnitResults.impedance - pointToPointResults.impedance) / perUnitResults.impedance * 100);
+            
+            // Determine if differences are acceptable (< 5% is good)
+            const isAcceptable = symmDiff < 5 && asymmDiff < 5 && mvaDiff < 5;
+            
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = `
                 <div class="comparison-mode">
-                    <h3 style="color: #f59e0b; margin-bottom: 15px;">⚖️ Comparison Mode</h3>
-                    <p>Comparing Per-Unit Method vs Point-to-Point Method</p>
+                    <h3 style="color: #f59e0b; margin-bottom: 15px;">⚖️ Comparison Mode - Method Validation</h3>
+                    <p>Comparing Per-Unit Method vs Point-to-Point Method for calculation accuracy verification</p>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
                     <div style="background: #f0f9ff; padding: 20px; border-radius: 12px; border: 2px solid #0284c7;">
-                        <h4 style="color: #0c4a6e; margin-bottom: 15px;">Per-Unit Method</h4>
-                        <p><strong>Symmetrical:</strong> ${perUnitResults.iscSymm.toFixed(2)} kA</p>
-                        <p><strong>Asymmetrical:</strong> ${perUnitResults.iscAsymm.toFixed(2)} kA</p>
-                        <p><strong>Fault MVA:</strong> ${perUnitResults.faultMVA.toFixed(2)} MVA</p>
+                        <h4 style="color: #0c4a6e; margin-bottom: 15px;">📐 Per-Unit Method</h4>
+                        <div style="line-height: 2;">
+                            <p><strong>Symmetrical:</strong> ${perUnitResults.iscSymm.toFixed(3)} kA</p>
+                            <p><strong>Asymmetrical:</strong> ${perUnitResults.iscAsymm.toFixed(3)} kA</p>
+                            <p><strong>Fault MVA:</strong> ${perUnitResults.faultMVA.toFixed(3)} MVA</p>
+                            <p><strong>Impedance:</strong> ${perUnitResults.impedance.toFixed(5)} Ω</p>
+                            <p><strong>X/R Ratio:</strong> ${perUnitResults.xr.toFixed(3)}</p>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: rgba(12, 74, 110, 0.1); border-radius: 6px; font-size: 0.9em;">
+                            <strong>Method Notes:</strong><br>
+                            • Normalized to base MVA<br>
+                            • Better for multi-voltage systems<br>
+                            • Widely used in industry
+                        </div>
                     </div>
                     <div style="background: #f0fdf4; padding: 20px; border-radius: 12px; border: 2px solid #10b981;">
-                        <h4 style="color: #065f46; margin-bottom: 15px;">Point-to-Point Method</h4>
-                        <p><strong>Symmetrical:</strong> ${pointToPointResults.iscSymm.toFixed(2)} kA</p>
-                        <p><strong>Asymmetrical:</strong> ${pointToPointResults.iscAsymm.toFixed(2)} kA</p>
-                        <p><strong>Fault MVA:</strong> ${pointToPointResults.faultMVA.toFixed(2)} MVA</p>
+                        <h4 style="color: #065f46; margin-bottom: 15px;">🎯 Point-to-Point Method</h4>
+                        <div style="line-height: 2;">
+                            <p><strong>Symmetrical:</strong> ${pointToPointResults.iscSymm.toFixed(3)} kA</p>
+                            <p><strong>Asymmetrical:</strong> ${pointToPointResults.iscAsymm.toFixed(3)} kA</p>
+                            <p><strong>Fault MVA:</strong> ${pointToPointResults.faultMVA.toFixed(3)} MVA</p>
+                            <p><strong>Impedance:</strong> ${pointToPointResults.impedance.toFixed(5)} Ω</p>
+                            <p><strong>X/R Ratio:</strong> ${pointToPointResults.xr.toFixed(3)}</p>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: rgba(6, 95, 70, 0.1); border-radius: 6px; font-size: 0.9em;">
+                            <strong>Method Notes:</strong><br>
+                            • Direct impedance sum<br>
+                            • Simpler for single voltage<br>
+                            • Easier to understand
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: ${isAcceptable ? '#d1fae5' : '#fef3c7'}; padding: 20px; border-radius: 12px; border: 2px solid ${isAcceptable ? '#10b981' : '#f59e0b'}; margin-bottom: 25px;">
+                    <h4 style="color: ${isAcceptable ? '#065f46' : '#92400e'}; margin-bottom: 15px;">
+                        ${isAcceptable ? '✅ Validation Passed' : '⚠️ Review Differences'}
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr style="background: white; font-weight: 600;">
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Parameter</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Difference</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Status</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Explanation</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Symmetrical Current</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-weight: 600;">${symmDiff.toFixed(2)}%</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">${symmDiff < 2 ? '✓ Excellent' : symmDiff < 5 ? '✓ Good' : '⚠ Review'}</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-size: 0.9em;">
+                                ${symmDiff < 5 ? 'Both methods agree well' : 'Check impedance calculations'}
+                            </td>
+                        </tr>
+                        <tr style="background: #f9fafb;">
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Asymmetrical Current</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-weight: 600;">${asymmDiff.toFixed(2)}%</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">${asymmDiff < 2 ? '✓ Excellent' : asymmDiff < 5 ? '✓ Good' : '⚠ Review'}</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-size: 0.9em;">
+                                ${asymmDiff < 5 ? 'X/R ratios consistent' : 'Verify X/R ratio inputs'}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Fault MVA</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-weight: 600;">${mvaDiff.toFixed(2)}%</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">${mvaDiff < 2 ? '✓ Excellent' : mvaDiff < 5 ? '✓ Good' : '⚠ Review'}</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-size: 0.9em;">
+                                ${mvaDiff < 5 ? 'Fault level consistent' : 'Review voltage levels'}
+                            </td>
+                        </tr>
+                        <tr style="background: #f9fafb;">
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">Total Impedance</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-weight: 600;">${impedanceDiff.toFixed(2)}%</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0;">${impedanceDiff < 2 ? '✓ Excellent' : impedanceDiff < 5 ? '✓ Good' : '⚠ Review'}</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e0; font-size: 0.9em;">
+                                ${impedanceDiff < 5 ? 'Impedance reflection accurate' : 'Check transformer voltage ratios'}
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 8px; font-size: 0.9em;">
+                        <strong>💡 Interpretation Guide:</strong><br>
+                        • <strong>< 2% difference:</strong> Excellent agreement - Both methods validate each other<br>
+                        • <strong>2-5% difference:</strong> Good agreement - Acceptable for engineering purposes<br>
+                        • <strong>> 5% difference:</strong> Review required - Check voltage levels, impedance values, and transformer ratios
                     </div>
                 </div>
                 
                 <div class="executive-summary">
-                    <h3>📊 Recommended Values (Average)</h3>
+                    <h3>📊 Recommended Design Values (Conservative)</h3>
                     <div class="summary-grid">
                         <div class="summary-card">
                             <div class="summary-card-label">Symmetrical Current</div>
-                            <div class="summary-card-value">${((perUnitResults.iscSymm + pointToPointResults.iscSymm) / 2).toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                            <div class="summary-card-value">${Math.max(perUnitResults.iscSymm, pointToPointResults.iscSymm).toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                            <div style="font-size: 0.8em; color: #64748b; margin-top: 5px;">Use higher value</div>
                         </div>
                         <div class="summary-card">
                             <div class="summary-card-label">Asymmetrical Current</div>
-                            <div class="summary-card-value" style="color: #dc3545;">${((perUnitResults.iscAsymm + pointToPointResults.iscAsymm) / 2).toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                            <div class="summary-card-value" style="color: #dc3545;">${Math.max(perUnitResults.iscAsymm, pointToPointResults.iscAsymm).toFixed(2)}<span style="font-size: 0.5em;"> kA</span></div>
+                            <div style="font-size: 0.8em; color: #64748b; margin-top: 5px;">Use higher value</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">Fault MVA</div>
+                            <div class="summary-card-value" style="color: #f59e0b;">${Math.max(perUnitResults.faultMVA, pointToPointResults.faultMVA).toFixed(2)}<span style="font-size: 0.5em;"> MVA</span></div>
+                            <div style="font-size: 0.8em; color: #64748b; margin-top: 5px;">Use higher value</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">Agreement</div>
+                            <div class="summary-card-value" style="color: ${isAcceptable ? '#10b981' : '#f59e0b'};">${((100 - (symmDiff + asymmDiff) / 2)).toFixed(1)}<span style="font-size: 0.5em;">%</span></div>
+                            <div style="font-size: 0.8em; color: #64748b; margin-top: 5px;">Methods correlation</div>
                         </div>
                     </div>
                 </div>
