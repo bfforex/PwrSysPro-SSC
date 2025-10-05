@@ -398,6 +398,61 @@
             padding: 15px;
             border-radius: 10px;
             margin: 15px 0;
+        }
+        
+        .voltage-zone-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-left: 8px;
+            border: 1px solid;
+        }
+        
+        .voltage-zone-lv {
+            background: #dbeafe;
+            color: #1e40af;
+            border-color: #3b82f6;
+        }
+        
+        .voltage-zone-mv {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: #f59e0b;
+        }
+        
+        .voltage-zone-hv {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #ef4444;
+        }
+        
+        .validation-warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .validation-error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .validation-success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
             border: 1px solid #fbbf24;
         }
         
@@ -925,6 +980,39 @@
                     </select>
                 </div>
                 
+                <div id="iecControls" style="display: none;">
+                    <div class="form-group">
+                        <label>Voltage Factor (c) for IEC 60909:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">IEC 60909 voltage factor: cmax for maximum short-circuit, cmin for minimum. Typically 1.0-1.1 depending on voltage level.</span>
+                            </span>
+                        </label>
+                        <select id="iecVoltageFactor">
+                            <option value="auto">Auto (Based on Voltage Level)</option>
+                            <option value="1.0">c = 1.00 (Low tolerance systems)</option>
+                            <option value="1.05">c = 1.05 (LV ≤1kV, cmax)</option>
+                            <option value="1.10">c = 1.10 (MV/HV, cmax)</option>
+                            <option value="0.95">c = 0.95 (cmin for minimum fault)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Peak Factor (κ) Calculation:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Peak factor for calculating peak short-circuit current. Auto calculates from R/X ratio per IEC 60909.</span>
+                            </span>
+                        </label>
+                        <select id="iecPeakFactor">
+                            <option value="auto">Auto (Calculate from R/X ratio)</option>
+                            <option value="1.15">κ = 1.15 (Near generator)</option>
+                            <option value="1.5">κ = 1.5 (Medium distance)</option>
+                            <option value="1.8">κ = 1.8 (Far from source)</option>
+                            <option value="2.0">κ = 2.0 (Maximum, X/R >> 1)</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label>Component Type:</label>
                     <select id="componentType">
@@ -1027,10 +1115,78 @@
         
         <div id="safetyTab" class="tab-content">
             <div style="padding: 35px; background: #fafbfc;">
-                <h2 class="section-title">Safety Analysis</h2>
+                <h2 class="section-title">Safety Analysis & Arc Flash</h2>
+                
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-bottom: 25px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">⚡ Arc Flash Parameters (IEEE 1584-2018)</h3>
+                    
+                    <div class="form-group">
+                        <label>Working Distance (mm):
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Distance from arc source to worker. Typical: 450mm (18") for LV, 900mm (36") for MV</span>
+                            </span>
+                        </label>
+                        <input type="number" id="arcWorkingDistance" placeholder="e.g., 450" value="450" step="10">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Equipment Gap (mm):
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Distance between conductors. Typical: 32mm for LV, 104mm for MV</span>
+                            </span>
+                        </label>
+                        <input type="number" id="arcEquipmentGap" placeholder="e.g., 32" value="32" step="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Enclosure Type:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Type of electrical enclosure affects arc energy</span>
+                            </span>
+                        </label>
+                        <select id="arcEnclosureType">
+                            <option value="VCB">VCB - Vertical conductors in a box</option>
+                            <option value="VCBB">VCBB - Vertical conductors in a box with barriers</option>
+                            <option value="HCB">HCB - Horizontal conductors in a box</option>
+                            <option value="VOA">VOA - Vertical conductors in open air</option>
+                            <option value="HOA">HOA - Horizontal conductors in open air</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Arc Duration / Clearing Time (seconds):
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Time for protective device to clear the fault. Typical: 0.1s (6 cycles @ 60Hz)</span>
+                            </span>
+                        </label>
+                        <input type="number" id="arcDuration" placeholder="e.g., 0.1" value="0.1" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>System Grounding:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Grounding method affects fault current and arc flash energy</span>
+                            </span>
+                        </label>
+                        <select id="arcGrounding">
+                            <option value="solidly">Solidly Grounded</option>
+                            <option value="resistance">Resistance Grounded</option>
+                            <option value="ungrounded">Ungrounded</option>
+                            <option value="reactance">Reactance Grounded</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="calculateArcFlashFromResults()">Calculate Arc Flash Analysis</button>
+                </div>
+                
                 <div id="safetyResults">
                     <p style="color: #94a3b8; text-align: center; padding: 50px 20px;">
-                        Complete calculation first to see safety analysis including arc flash boundaries and PPE requirements
+                        Complete short circuit calculation and then click "Calculate Arc Flash Analysis" to see arc flash boundaries and PPE requirements
                     </p>
                 </div>
             </div>
@@ -1540,6 +1696,126 @@
         }
         
         /**
+         * Calculate arc flash from calculation results
+         */
+        function calculateArcFlashFromResults() {
+            if (!calculationResults) {
+                alert('Please complete a short circuit calculation first before performing arc flash analysis.');
+                return;
+            }
+            
+            // Get arc flash parameters from UI
+            const workingDistance = parseFloat(document.getElementById('arcWorkingDistance').value);
+            const equipmentGap = parseFloat(document.getElementById('arcEquipmentGap').value);
+            const enclosureType = document.getElementById('arcEnclosureType').value;
+            const arcDuration = parseFloat(document.getElementById('arcDuration').value);
+            const grounding = document.getElementById('arcGrounding').value;
+            
+            // Get system voltage from original calculation
+            const systemVoltage = parseFloat(document.getElementById('systemVoltage').value) / 1000; // Convert to kV
+            const boltedFaultCurrent = calculationResults.iscSymm; // Already in kA
+            
+            // Perform arc flash calculation
+            const arcFlashResults = calculateArcFlash({
+                method: 'ieee1584-2018',
+                voltage: systemVoltage,
+                boltedFaultCurrent: boltedFaultCurrent,
+                workingDistance: workingDistance,
+                equipmentGap: equipmentGap,
+                enclosureType: enclosureType,
+                arcDuration: arcDuration
+            });
+            
+            // Display results
+            displayArcFlashResults(arcFlashResults, grounding);
+        }
+        
+        /**
+         * Display arc flash results
+         */
+        function displayArcFlashResults(results, grounding) {
+            const safetyDiv = document.getElementById('safetyResults');
+            
+            const html = `
+                <div class="safety-analysis">
+                    <h3 style="color: #991b1b; margin-bottom: 20px;">⚡ Arc Flash Analysis Results (IEEE 1584-2018)</h3>
+                    
+                    <div class="executive-summary" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #ef4444;">
+                        <div class="summary-grid">
+                            <div class="summary-card">
+                                <div class="summary-card-label">Incident Energy</div>
+                                <div class="summary-card-value" style="color: #dc2626;">${results.incidentEnergy.toFixed(2)} cal/cm²</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">Arc Flash Boundary</div>
+                                <div class="summary-card-value" style="color: #dc2626;">${results.arcFlashBoundary.toFixed(0)} mm</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">PPE Category</div>
+                                <div class="summary-card-value" style="color: #dc2626;">${results.ppeCategory}</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-card-label">Arcing Current</div>
+                                <div class="summary-card-value" style="color: #dc2626;">${results.arcingCurrent.toFixed(2)} kA</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 12px; margin-top: 20px;">
+                        <h4 style="color: #1e3c72; margin-bottom: 15px;">Calculation Parameters</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 10px; font-weight: 600;">System Voltage</td>
+                                <td style="padding: 10px;">${results.voltage.toFixed(2)} kV</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 10px; font-weight: 600;">Bolted Fault Current</td>
+                                <td style="padding: 10px;">${results.boltedFaultCurrent.toFixed(2)} kA</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 10px; font-weight: 600;">Working Distance</td>
+                                <td style="padding: 10px;">${results.workingDistance} mm (${(results.workingDistance / 25.4).toFixed(1)} inches)</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 10px; font-weight: 600;">Equipment Gap</td>
+                                <td style="padding: 10px;">${results.equipmentGap} mm</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 10px; font-weight: 600;">Enclosure Type</td>
+                                <td style="padding: 10px;">${results.enclosureType}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 10px; font-weight: 600;">Arc Duration</td>
+                                <td style="padding: 10px;">${results.arcDuration} seconds (${(results.arcDuration * 60).toFixed(1)} cycles @ 60Hz)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: 600;">Grounding Method</td>
+                                <td style="padding: 10px;">${grounding.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="background: #fffbeb; padding: 20px; border-radius: 12px; margin-top: 20px; border: 2px solid #f59e0b;">
+                        <h4 style="color: #92400e; margin-bottom: 15px;">⚠️ Safety Recommendations</h4>
+                        <ul style="margin-left: 20px; line-height: 1.8;">
+                            <li><strong>Required PPE:</strong> ${getPPEDescription(results.ppeCategory)}</li>
+                            <li><strong>Arc Flash Boundary:</strong> Workers must maintain distance of at least ${results.arcFlashBoundary.toFixed(0)} mm from energized parts</li>
+                            <li><strong>Warning Labels:</strong> Install arc flash warning labels showing incident energy and arc flash boundary</li>
+                            <li><strong>Training:</strong> Ensure all workers are trained in arc flash hazards and proper PPE usage</li>
+                            <li><strong>Work Practices:</strong> Use energized electrical work permits and job briefings before work</li>
+                            ${results.incidentEnergy > 40 ? '<li><strong>⚠️ HIGH HAZARD:</strong> Incident energy exceeds 40 cal/cm². Consider de-energizing equipment or using remote racking systems.</li>' : ''}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            safetyDiv.innerHTML = html;
+            
+            // Show toast notification
+            showToast('Arc flash analysis completed successfully', 'success');
+        }
+        
+        /**
          * Calculate Arc Flash Boundary
          */
         function calculateArcFlashBoundary(incidentEnergy, workingDistance) {
@@ -1561,6 +1837,20 @@
             if (incidentEnergy < 8) return 2;
             if (incidentEnergy < 25) return 3;
             return 4;
+        }
+        
+        /**
+         * Get PPE description based on category
+         */
+        function getPPEDescription(category) {
+            const descriptions = {
+                0: 'Category 0 - Non-melting or untreated natural fiber clothing, safety glasses',
+                1: 'Category 1 - Arc-rated FR shirt and pants (4 cal/cm²), arc-rated face shield, leather gloves',
+                2: 'Category 2 - Arc-rated FR shirt and pants, arc flash suit jacket (8 cal/cm²), arc-rated face shield with balaclava',
+                3: 'Category 3 - Arc-rated FR shirt and pants, arc flash suit (25 cal/cm²), arc-rated hood',
+                4: 'Category 4 - Arc-rated FR shirt and pants, double-layer arc flash suit (40+ cal/cm²), arc-rated hood, heavy duty gloves'
+            };
+            return descriptions[category] || descriptions[4];
         }
         
         /**
@@ -1979,8 +2269,26 @@
             voltage: { min: 0.1, max: 1000, required: true },
         };
         
+        // Common HTML for voltage zone selector
+        const voltageZoneSelector = `
+            <div class="form-group">
+                <label>Voltage Zone:
+                    <span class="help-tooltip">
+                        <span class="help-icon">?</span>
+                        <span class="help-text">Voltage level at which this component operates. LV: ≤1kV, MV: 1-35kV, HV: >35kV</span>
+                    </span>
+                </label>
+                <select id="compVoltageZone">
+                    <option value="lv">Low Voltage (LV) - ≤1 kV</option>
+                    <option value="mv">Medium Voltage (MV) - 1-35 kV</option>
+                    <option value="hv">High Voltage (HV) - >35 kV</option>
+                </select>
+            </div>
+        `;
+        
         const componentInputTemplates = {
             transformer: `
+                ${voltageZoneSelector}
                 <div class="form-group">
                     <label>Rated Power (MVA):</label>
                     <input type="number" id="compPower" placeholder="e.g., 1.5" step="0.01">
@@ -2005,14 +2313,24 @@
                 </div>
             `,
             cable: `
+                ${voltageZoneSelector}
                 <div class="form-group">
                     <label>Length (meters):</label>
                     <input type="number" id="compLength" placeholder="e.g., 100" step="0.1">
                 </div>
                 <div class="form-group">
-                    <label>Resistance (Ω/km):</label>
+                    <label>Resistance (Ω/km) @ 20°C:</label>
                     <input type="number" id="compResistance" placeholder="e.g., 0.387" step="0.001">
-                    <div class="info-text">R at operating temperature (typically 75-90°C)</div>
+                    <div class="info-text">Resistance at 20°C reference temperature</div>
+                </div>
+                <div class="form-group">
+                    <label>Operating Temperature (°C):</label>
+                    <select id="compOperatingTemp">
+                        <option value="20">20°C (Reference)</option>
+                        <option value="75" selected>75°C (Typical)</option>
+                        <option value="90">90°C (High Load)</option>
+                    </select>
+                    <div class="info-text">Temperature correction will be applied automatically</div>
                 </div>
                 <div class="form-group">
                     <label>Reactance (Ω/km):</label>
@@ -2028,6 +2346,7 @@
                 </div>
             `,
             generator: `
+                ${voltageZoneSelector}
                 <div class="form-group">
                     <label>Rated Power (MVA):</label>
                     <input type="number" id="compPower" placeholder="e.g., 2.0" step="0.01">
@@ -2078,6 +2397,7 @@
                 </div>
             `,
             utility_isc: `
+                ${voltageZoneSelector}
                 <div class="form-group">
                     <label>Available Short Circuit Current (kA):</label>
                     <input type="number" id="compISC" placeholder="e.g., 50" step="0.1">
@@ -2094,6 +2414,7 @@
                 </div>
             `,
             utility_mva: `
+                ${voltageZoneSelector}
                 <div class="form-group">
                     <label>Available Fault MVA:</label>
                     <input type="number" id="compMVA" placeholder="e.g., 500" step="0.1">
@@ -2110,6 +2431,7 @@
                 </div>
             `,
             utility_impedance: `
+                ${voltageZoneSelector}
                 <div class="form-group">
                     <label>Source Impedance (%):</label>
                     <input type="number" id="compImpedance" placeholder="e.g., 5" step="0.01">
@@ -2349,7 +2671,12 @@
         // Update method options based on standard
         function updateMethodOptions() {
             const standard = document.getElementById('calcStandard').value;
-            // Method options are standard-agnostic, so no changes needed
+            const iecControls = document.getElementById('iecControls');
+            
+            // Show IEC-specific controls only when IEC standard is selected
+            if (iecControls) {
+                iecControls.style.display = standard === 'iec' ? 'block' : 'none';
+            }
         }
         
         // Input validation
@@ -2447,6 +2774,18 @@
         function addComponent() {
             const type = document.getElementById('componentType').value;
             const component = { type: type };
+            
+            // Capture voltage zone if present
+            const voltageZoneEl = document.getElementById('compVoltageZone');
+            if (voltageZoneEl) {
+                component.voltageZone = voltageZoneEl.value;
+            }
+            
+            // Capture operating temperature for cables if present
+            const tempEl = document.getElementById('compOperatingTemp');
+            if (tempEl && tempEl.value) {
+                component.operatingTemp = parseFloat(tempEl.value);
+            }
             
             if (type === 'transformer') {
                 component.power = parseFloat(document.getElementById('compPower').value);
@@ -2581,9 +2920,17 @@
                 const modifiedClass = comp.modified ? ' component-modified' : '';
                 const editIndicator = comp.modified ? '<span class="edit-indicator">EDITED</span>' : '';
                 
+                // Add voltage zone badge if present
+                let voltageZoneBadge = '';
+                if (comp.voltageZone) {
+                    const zoneClass = `voltage-zone-${comp.voltageZone}`;
+                    const zoneName = comp.voltageZone === 'lv' ? 'LV' : comp.voltageZone === 'mv' ? 'MV' : 'HV';
+                    voltageZoneBadge = `<span class="${zoneClass} voltage-zone-badge">${zoneName}</span>`;
+                }
+                
                 return `
                     <div class="component-item${modifiedClass}">
-                        <span><strong>${comp.type.toUpperCase().replace(/_/g, ' ')}</strong>: ${details}${editIndicator}</span>
+                        <span><strong>${comp.type.toUpperCase().replace(/_/g, ' ')}</strong>: ${details}${voltageZoneBadge}${editIndicator}</span>
                         <div style="display: flex; gap: 5px;">
                             <button class="btn btn-warning" style="padding: 8px 16px; font-size: 13px;" onclick="editComponent(${index})">Edit</button>
                             <button class="btn btn-danger" onclick="removeComponent(${index})">Remove</button>
@@ -2609,6 +2956,54 @@
             return 0.1; // Default
         }
         
+        // Enhanced validation function
+        function performPreCalculationValidation(systemVoltage, components) {
+            const warnings = [];
+            const errors = [];
+            
+            // Check for voltage zone mismatches
+            const voltageZones = components.filter(c => c.voltageZone).map(c => c.voltageZone);
+            const uniqueZones = [...new Set(voltageZones)];
+            
+            if (uniqueZones.length > 1) {
+                const hasTransformer = components.some(c => c.type === 'transformer');
+                if (!hasTransformer) {
+                    warnings.push('⚠️ Multiple voltage zones detected without a transformer connection. Ensure impedance reflection is properly handled.');
+                }
+            }
+            
+            // Check for unrealistic X/R ratios
+            components.forEach((comp, idx) => {
+                if (comp.xr !== undefined) {
+                    if (comp.xr < 0.01) {
+                        warnings.push(`⚠️ Component ${idx + 1}: Very low X/R ratio (${comp.xr}). Typical values are 0.05-20.`);
+                    } else if (comp.xr > 50) {
+                        warnings.push(`⚠️ Component ${idx + 1}: Very high X/R ratio (${comp.xr}). Verify this is correct.`);
+                    }
+                }
+            });
+            
+            // Check transformer voltage levels
+            components.forEach((comp, idx) => {
+                if (comp.type === 'transformer') {
+                    if (comp.primaryV && comp.secondaryV) {
+                        if (comp.primaryV === comp.secondaryV) {
+                            warnings.push(`⚠️ Transformer ${idx + 1}: Primary and secondary voltages are equal. Is this an auto-transformer?`);
+                        }
+                    }
+                }
+            });
+            
+            // Check for missing critical data
+            components.forEach((comp, idx) => {
+                if ((comp.type === 'transformer' || comp.type === 'generator') && !comp.rx && comp.rx !== 0) {
+                    warnings.push(`ℹ️ Component ${idx + 1}: Using typical R/X ratio. Specify exact value if available.`);
+                }
+            });
+            
+            return { warnings, errors };
+        }
+        
         function calculate() {
             const systemVoltage = parseFloat(document.getElementById('systemVoltage').value);
             const standard = document.getElementById('calcStandard').value;
@@ -2624,6 +3019,29 @@
             
             if (components.length === 0) {
                 alert('Please add at least one component before calculating');
+                return;
+            }
+            
+            // Perform pre-calculation validation
+            const validation = performPreCalculationValidation(systemVoltage, components);
+            
+            // Display validation warnings if any
+            if (validation.warnings.length > 0) {
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'validation-warning';
+                warningDiv.innerHTML = '<strong>Pre-Calculation Warnings:</strong><br>' + validation.warnings.join('<br>');
+                
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '';
+                resultsDiv.appendChild(warningDiv);
+                
+                const proceed = confirm('Validation warnings detected:\n\n' + validation.warnings.join('\n\n') + '\n\nProceed with calculation?');
+                if (!proceed) return;
+            }
+            
+            // Check for validation errors (blocking)
+            if (validation.errors.length > 0) {
+                alert('Validation Errors:\n\n' + validation.errors.join('\n\n'));
                 return;
             }
             
@@ -2695,12 +3113,19 @@
             // Voltage factor c per standard
             let cFactor = 1.0;
             if (standard === 'iec') {
-                if (systemVoltage <= 1000) {
-                    cFactor = 1.05;
-                } else if (systemVoltage <= 35000) {
-                    cFactor = 1.1;
+                // Check if user has specified a custom voltage factor
+                const iecVoltageFactorEl = document.getElementById('iecVoltageFactor');
+                if (iecVoltageFactorEl && iecVoltageFactorEl.value !== 'auto') {
+                    cFactor = parseFloat(iecVoltageFactorEl.value);
                 } else {
-                    cFactor = 1.1;
+                    // Auto-determine based on voltage level
+                    if (systemVoltage <= 1000) {
+                        cFactor = 1.05;
+                    } else if (systemVoltage <= 35000) {
+                        cFactor = 1.1;
+                    } else {
+                        cFactor = 1.1;
+                    }
                 }
             } else {
                 cFactor = systemVoltage <= 600 ? 1.0 : 1.05;
@@ -2727,7 +3152,18 @@
                         content: `Rated: ${comp.power} MVA, ${comp.primaryV}/${comp.secondaryV} kV<br>Impedance: ${comp.impedance}%<br>R/X Ratio: ${rxRatio.toFixed(3)} ${comp.rx === null ? '(typical)' : '(specified)'}<br>Zbase = ${zBase.toFixed(4)} Ω<br>Z(pu) = ${comp.impedance}% × (${baseMVA}/${comp.power}) = ${zPU.toFixed(4)} pu<br>X(pu) = ${xPU.toFixed(4)} pu → ${(xPU * zBase).toFixed(4)} Ω<br>R(pu) = ${rPU.toFixed(4)} pu → ${(rPU * zBase).toFixed(4)} Ω`
                     });
                 } else if (comp.type === 'cable') {
-                    const r = comp.resistance * comp.length / 1000;
+                    // Apply temperature correction if operating temperature is specified
+                    let rCorrected = comp.resistance;
+                    let tempNote = '';
+                    if (comp.operatingTemp && comp.operatingTemp !== 20) {
+                        // Temperature correction for copper: R2 = R1 × (234.5 + T2)/(234.5 + T1)
+                        // For aluminum: use 228 instead of 234.5
+                        const tempCoeff = 234.5; // Copper constant
+                        rCorrected = comp.resistance * (tempCoeff + comp.operatingTemp) / (tempCoeff + 20);
+                        tempNote = `<br>Temperature corrected from 20°C to ${comp.operatingTemp}°C<br>R@${comp.operatingTemp}°C = ${comp.resistance} × ${((tempCoeff + comp.operatingTemp) / (tempCoeff + 20)).toFixed(3)} = ${rCorrected.toFixed(4)} Ω/km`;
+                    }
+                    
+                    const r = rCorrected * comp.length / 1000;
                     const x = comp.reactance * comp.length / 1000;
                     
                     totalImpedance.r += r;
@@ -2735,7 +3171,7 @@
                     
                     steps.push({
                         title: `Cable ${index + 1} (Per ${standard.toUpperCase()})`,
-                        content: `Type: ${comp.cableType === 'single' ? 'Single Core' : 'Multi Core'}<br>Length: ${comp.length} m<br>R = ${comp.resistance} Ω/km × ${comp.length/1000} km = ${r.toFixed(4)} Ω<br>X = ${comp.reactance} Ω/km × ${comp.length/1000} km = ${x.toFixed(4)} Ω<br>Note: Values should be at operating temperature`
+                        content: `Type: ${comp.cableType === 'single' ? 'Single Core' : 'Multi Core'}<br>Length: ${comp.length} m${tempNote}<br>R = ${rCorrected.toFixed(4)} Ω/km × ${comp.length/1000} km = ${r.toFixed(4)} Ω<br>X = ${comp.reactance} Ω/km × ${comp.length/1000} km = ${x.toFixed(4)} Ω`
                     });
                 } else if (comp.type === 'generator') {
                     const zBase = (comp.voltage * comp.voltage) / baseMVA;
@@ -2838,14 +3274,24 @@
             let iscAsymm, iscAsymmKA, kappa, multiplier;
             if (standard === 'iec') {
                 // IEC 60909: ip = κ × √2 × I"k
-                kappa = 1.02 + 0.98 * Math.exp(-3 * totalImpedance.r / totalImpedance.x);
+                // Check if user specified custom peak factor
+                const iecPeakFactorEl = document.getElementById('iecPeakFactor');
+                let kappaNote = '';
+                if (iecPeakFactorEl && iecPeakFactorEl.value !== 'auto') {
+                    kappa = parseFloat(iecPeakFactorEl.value);
+                    kappaNote = `<br>(User specified κ = ${kappa})`;
+                } else {
+                    kappa = 1.02 + 0.98 * Math.exp(-3 * totalImpedance.r / totalImpedance.x);
+                    kappaNote = `<br>κ = 1.02 + 0.98 × e^(-3R/X) = 1.02 + 0.98 × e^(-3×${totalImpedance.r.toFixed(4)}/${totalImpedance.x.toFixed(4)})<br>κ = ${kappa.toFixed(3)}`;
+                }
+                
                 iscAsymm = kappa * Math.sqrt(2) * iscSymm;
                 iscAsymmKA = iscAsymm / 1000;
                 multiplier = kappa; // For result storage
                 
                 steps.push({
                     title: 'Short Circuit Current Calculation (IEC 60909)',
-                    content: `Symmetrical (RMS) Current I"k:<br>I"k = (c × Vn)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>I"k = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Peak Current ip (per IEC 60909-0):<br>κ = 1.02 + 0.98 × e^(-3R/X) = 1.02 + 0.98 × e^(-3×${totalImpedance.r.toFixed(4)}/${totalImpedance.x.toFixed(4)})<br>κ = ${kappa.toFixed(3)}<br>ip = κ × √2 × I"k = ${kappa.toFixed(3)} × 1.414 × ${iscSymmKA.toFixed(2)}<br>ip = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
+                    content: `Symmetrical (RMS) Current I"k:<br>I"k = (c × Vn)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>I"k = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Peak Current ip (per IEC 60909-0):${kappaNote}<br>ip = κ × √2 × I"k = ${kappa.toFixed(3)} × 1.414 × ${iscSymmKA.toFixed(2)}<br>ip = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
                 });
             } else {
                 // IEEE: Asymmetrical = Symmetrical × multiplier based on X/R
