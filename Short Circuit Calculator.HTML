@@ -914,6 +914,7 @@
                     <span class="standards-badge">IEEE 141 (Red Book)</span>
                     <span class="standards-badge">IEEE C37.010</span>
                     <span class="standards-badge">ANSI C37.5</span>
+                    <span class="standards-badge">NFPA 70E-2024</span>
                 </div>
             </div>
         </div>
@@ -2039,44 +2040,44 @@
         function getPPERecommendations(category, incidentEnergy) {
             const recommendations = {
                 0: {
-                    clothing: 'Non-melting or untreated natural fiber',
+                    clothing: 'Non-melting or untreated natural fiber (or arc-rated alternative)',
                     arcRating: '0 cal/cm²',
-                    faceShield: 'Not required for Category 0',
-                    gloves: 'Leather work gloves',
-                    hearing: 'Not required',
-                    other: 'Safety glasses'
+                    faceShield: 'Safety glasses with side shields (or arc-rated face shield)',
+                    gloves: 'Leather work gloves (or arc-rated alternative)',
+                    hearing: 'Hearing protection required (per NFPA 70E-2024)',
+                    other: 'Safety glasses, verify equipment ratings'
                 },
                 1: {
-                    clothing: 'Arc-rated FR shirt and pants',
+                    clothing: 'Arc-rated FR shirt and pants (or equivalent arc-rated materials)',
                     arcRating: '4 cal/cm²',
                     faceShield: 'Arc-rated face shield',
-                    gloves: 'Leather or arc-rated gloves',
-                    hearing: 'Hearing protection',
-                    other: 'Hard hat, safety glasses'
+                    gloves: 'Leather or arc-rated gloves (meeting minimum arc rating)',
+                    hearing: 'Hearing protection required (per NFPA 70E-2024)',
+                    other: 'Hard hat, safety glasses, verify equipment ratings'
                 },
                 2: {
-                    clothing: 'Arc-rated FR shirt and pants, arc flash suit jacket',
+                    clothing: 'Arc-rated FR shirt and pants, arc flash suit jacket (or equivalent)',
                     arcRating: '8 cal/cm²',
-                    faceShield: 'Arc-rated face shield with balaclava',
-                    gloves: 'Arc-rated gloves',
-                    hearing: 'Hearing protection',
-                    other: 'Hard hat, safety glasses'
+                    faceShield: 'Arc-rated face shield with balaclava (or equivalent hood)',
+                    gloves: 'Arc-rated gloves (meeting minimum arc rating)',
+                    hearing: 'Hearing protection required (per NFPA 70E-2024)',
+                    other: 'Hard hat, safety glasses, verify equipment ratings'
                 },
                 3: {
-                    clothing: 'Arc-rated FR shirt and pants, arc flash suit',
+                    clothing: 'Arc-rated FR shirt and pants, arc flash suit (or equivalent layers)',
                     arcRating: '25 cal/cm²',
-                    faceShield: 'Arc-rated hood',
-                    gloves: 'Arc-rated gloves',
-                    hearing: 'Hearing protection',
-                    other: 'Hard hat, safety glasses'
+                    faceShield: 'Arc-rated hood (meeting minimum arc rating)',
+                    gloves: 'Arc-rated gloves (meeting minimum arc rating)',
+                    hearing: 'Hearing protection required (per NFPA 70E-2024)',
+                    other: 'Hard hat, safety glasses, verify equipment ratings'
                 },
                 4: {
-                    clothing: 'Arc-rated FR shirt and pants, double-layer arc flash suit',
+                    clothing: 'Arc-rated FR shirt and pants, double-layer arc flash suit (or equivalent)',
                     arcRating: '40+ cal/cm²',
-                    faceShield: 'Arc-rated hood',
-                    gloves: 'Arc-rated gloves (heavy duty)',
-                    hearing: 'Hearing protection',
-                    other: 'Hard hat, safety glasses, leather work boots'
+                    faceShield: 'Arc-rated hood (meeting minimum arc rating)',
+                    gloves: 'Arc-rated gloves (heavy duty, meeting minimum arc rating)',
+                    hearing: 'Hearing protection required (per NFPA 70E-2024)',
+                    other: 'Hard hat, safety glasses, leather work boots, verify equipment ratings'
                 }
             };
             
@@ -4068,18 +4069,18 @@
                     </div>
                     
                     <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px;">
-                        <h5 style="color: #1e3c72; margin-bottom: 10px;">NFPA 70E Approach Boundaries</h5>
+                        <h5 style="color: #1e3c72; margin-bottom: 10px;">NFPA 70E-2024 Shock Protection Boundaries</h5>
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr style="background: #f8fafc;">
-                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Limited Approach</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Limited Approach (Shock Protection)</strong></td>
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.limited / 304.8).toFixed(2)} feet (${boundaries.limited} mm)</td>
                             </tr>
                             <tr>
-                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Restricted Approach</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Restricted Approach (Shock Protection)</strong></td>
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.restricted / 304.8).toFixed(2)} feet (${boundaries.restricted} mm)</td>
                             </tr>
                             <tr style="background: #f8fafc;">
-                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Prohibited Approach</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Prohibited Approach (Shock Protection)</strong></td>
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.prohibited / 304.8).toFixed(2)} feet (${boundaries.prohibited} mm)</td>
                             </tr>
                             <tr style="background: #fff3cd;">
@@ -4087,18 +4088,56 @@
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>${(arcFlashBoundary / 304.8).toFixed(2)} feet (${arcFlashBoundary.toFixed(0)} mm)</strong></td>
                             </tr>
                         </table>
+                        <div style="margin-top: 10px; font-size: 0.9em; color: #64748b;">
+                            <em>Note: NFPA 70E-2024 terminology - "Shock Protection Boundaries" replaces previous boundary terminology to clarify electrical shock hazard zones</em>
+                        </div>
                     </div>
                     
                     <div style="margin-top: 20px; padding: 15px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px;">
-                        <strong>⚠️ CRITICAL SAFETY REQUIREMENTS:</strong><br>
+                        <strong>⚠️ CRITICAL SAFETY REQUIREMENTS (NFPA 70E-2024):</strong><br>
                         • All personnel must wear appropriate PPE for Category ${ppeCategory}<br>
+                        • <strong>Hearing protection mandatory</strong> for all arc flash work (NFPA 70E-2024 requirement)<br>
                         • Establish arc flash boundary at ${(arcFlashBoundary / 304.8).toFixed(2)} feet<br>
-                        • Only qualified persons permitted within restricted approach boundary<br>
+                        • Only qualified persons permitted within shock protection boundaries<br>
                         • Consider arc-resistant switchgear for incident energy > 12 cal/cm²<br>
                         • Implement proper lockout/tagout procedures per NFPA 70E Article 120<br>
                         • Post arc flash labels per NFPA 70E 130.5(D)<br>
                         • Regular inspection and maintenance per NFPA 70E and NEC requirements<br>
-                        • Conduct job briefing before any work within arc flash boundary
+                        • Conduct job briefing before any work within arc flash boundary<br>
+                        • Verify equipment ratings meet or exceed calculated fault levels
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #fef9e6; border-left: 4px solid #f59e0b; border-radius: 8px;">
+                        <strong>🚨 EMERGENCY RESPONSE PLANNING (NFPA 70E-2024):</strong><br>
+                        • Establish emergency response plan before work begins<br>
+                        • Ensure emergency contact information is readily available<br>
+                        • Identify nearest emergency medical facility and route<br>
+                        • Have fire suppression equipment readily available<br>
+                        • Train all personnel on emergency procedures<br>
+                        • Maintain communication with site safety coordinator<br>
+                        • Document and review emergency response procedures annually
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #e0f2fe; border-left: 4px solid #0284c7; border-radius: 8px;">
+                        <strong>✓ EQUIPMENT RATING VALIDATION (NFPA 70E-2024):</strong><br>
+                        • Verify circuit breaker interrupting rating ≥ ${results.iscSymm.toFixed(2)} kA<br>
+                        • Verify momentary rating ≥ ${results.iscAsymm.toFixed(2)} kA<br>
+                        • Check equipment withstand rating against fault MVA (${results.faultMVA.toFixed(2)} MVA)<br>
+                        • Confirm X/R ratio compatibility (calculated: ${results.xr.toFixed(2)})<br>
+                        • Validate arc flash labels match current system conditions<br>
+                        • Ensure all equipment ratings documented and current<br>
+                        • Review equipment condition and maintenance records
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 8px;">
+                        <strong>📋 NFPA 70E-2024 COMPLIANCE NOTES:</strong><br>
+                        • <strong>PPE Material Flexibility:</strong> Alternative materials meeting equivalent arc ratings are acceptable<br>
+                        • <strong>Updated Terminology:</strong> "Shock protection boundaries" replaces older boundary terms<br>
+                        • <strong>Hearing Protection:</strong> Now mandatory for all arc flash work regardless of category<br>
+                        • <strong>Equipment Ratings:</strong> Must be validated annually or when system changes occur<br>
+                        • <strong>Emergency Response:</strong> Formal planning required before any energized work<br>
+                        • <strong>Documentation:</strong> All risk assessments and calculations must be documented<br>
+                        • <strong>Training:</strong> Annual refresher training required for all qualified persons
                     </div>
                 </div>
                 
@@ -4339,7 +4378,7 @@
                 
                 doc.setFontSize(10);
                 doc.setFont(undefined, 'normal');
-                doc.text('Arc Flash Hazard Assessment (IEEE 1584-2018)', 20, yPos);
+                doc.text('Arc Flash Hazard Assessment (IEEE 1584-2018 & NFPA 70E-2024)', 20, yPos);
                 yPos += 8;
                 
                 // Calculate arc flash
@@ -4357,7 +4396,9 @@
                     ['Incident Energy', `${arcFlashData.incidentEnergy.toFixed(2)} cal/cm²`],
                     ['Arc Flash Boundary', `${arcFlashData.arcFlashBoundary.toFixed(0)} mm`],
                     ['PPE Category', arcFlashData.ppeCategory],
-                    ['Arcing Current', `${arcFlashData.arcingCurrent.toFixed(2)} kA`]
+                    ['Arcing Current', `${arcFlashData.arcingCurrent.toFixed(2)} kA`],
+                    ['Hearing Protection', 'MANDATORY (NFPA 70E-2024)'],
+                    ['Emergency Response', 'Plan Required Before Work']
                 ];
                 
                 doc.autoTable({
@@ -4502,7 +4543,7 @@
                 const boundaries = calculateApproachBoundaries(systemVoltage / 1000);
                 
                 const safetyData = [
-                    ['Safety Analysis (IEEE 1584-2018 & NFPA 70E)'],
+                    ['Safety Analysis (IEEE 1584-2018 & NFPA 70E-2024)'],
                     [''],
                     ['Arc Flash Hazard Assessment'],
                     ['Parameter', 'Value', 'Unit'],
@@ -4516,7 +4557,7 @@
                     ['Arc Flash Boundary', arcFlashData.arcFlashBoundary.toFixed(0), 'mm'],
                     ['PPE Category', arcFlashData.ppeCategory, ''],
                     [''],
-                    ['PPE Requirements'],
+                    ['PPE Requirements (NFPA 70E-2024)'],
                     ['Item', 'Specification'],
                     ['Clothing', ppeRec.clothing],
                     ['Arc Rating', ppeRec.arcRating],
@@ -4525,11 +4566,18 @@
                     ['Hearing Protection', ppeRec.hearing],
                     ['Other', ppeRec.other],
                     [''],
-                    ['NFPA 70E Approach Boundaries'],
+                    ['NFPA 70E-2024 Shock Protection Boundaries'],
                     ['Boundary', 'Distance (mm)'],
-                    ['Limited Approach', boundaries.limited],
-                    ['Restricted Approach', boundaries.restricted],
-                    ['Prohibited Approach', boundaries.prohibited]
+                    ['Limited Approach (Shock Protection)', boundaries.limited],
+                    ['Restricted Approach (Shock Protection)', boundaries.restricted],
+                    ['Prohibited Approach (Shock Protection)', boundaries.prohibited],
+                    [''],
+                    ['NFPA 70E-2024 Compliance Notes'],
+                    ['Requirement', 'Status'],
+                    ['Hearing Protection', 'MANDATORY for all arc flash work'],
+                    ['Emergency Response Plan', 'REQUIRED before work begins'],
+                    ['Equipment Rating Validation', 'REQUIRED annually or when system changes'],
+                    ['PPE Material Flexibility', 'Equivalent materials meeting arc ratings acceptable']
                 ];
                 
                 const ws4 = XLSX.utils.aoa_to_sheet(safetyData);
