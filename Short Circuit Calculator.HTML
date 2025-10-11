@@ -1833,9 +1833,78 @@
         function displayArcFlashResults(results, grounding) {
             const safetyDiv = document.getElementById('safetyResults');
             
+            // Check arc flash thresholds and generate warnings
+            const arcFlashWarnings = [];
+            const THRESHOLD_1_2 = 1.2; // cal/cm² - minimum PPE threshold
+            const THRESHOLD_4 = 4.0;   // cal/cm² - Category 1 limit
+            const THRESHOLD_8 = 8.0;   // cal/cm² - Category 2 limit
+            const THRESHOLD_25 = 25.0; // cal/cm² - Category 3 limit
+            const THRESHOLD_40 = 40.0; // cal/cm² - Category 4 limit
+            
+            if (results.incidentEnergy < THRESHOLD_1_2) {
+                arcFlashWarnings.push({
+                    level: 'info',
+                    message: `✓ SAFE: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) is below 1.2 cal/cm² threshold. Minimal arc flash hazard.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_1_2 && results.incidentEnergy < THRESHOLD_4) {
+                arcFlashWarnings.push({
+                    level: 'warning',
+                    message: `⚠️ CAUTION: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 1 minimum.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_4 && results.incidentEnergy < THRESHOLD_8) {
+                arcFlashWarnings.push({
+                    level: 'warning',
+                    message: `⚠️ CAUTION: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 2.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_8 && results.incidentEnergy < THRESHOLD_25) {
+                arcFlashWarnings.push({
+                    level: 'danger',
+                    message: `⚠️ WARNING: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 3. Consider additional safety measures.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_25 && results.incidentEnergy < THRESHOLD_40) {
+                arcFlashWarnings.push({
+                    level: 'danger',
+                    message: `⚠️ WARNING: HIGH HAZARD - Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 4.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_40) {
+                arcFlashWarnings.push({
+                    level: 'critical',
+                    message: `🚨 CRITICAL: EXTREME HAZARD - Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) exceeds 40 cal/cm². Consider arc-resistant equipment, remote operation, or de-energization.`
+                });
+            }
+            
+            // Validate arc flash boundary
+            if (results.arcFlashBoundary > 0) {
+                const afbFeet = (results.arcFlashBoundary / 304.8).toFixed(2);
+                if (results.arcFlashBoundary > 3000) {
+                    arcFlashWarnings.push({
+                        level: 'danger',
+                        message: `⚠️ Arc Flash Boundary extends to ${afbFeet} feet - unusually large. Verify calculation inputs.`
+                    });
+                }
+            }
+            
+            // Build warnings HTML
+            let warningsHtml = '';
+            if (arcFlashWarnings.length > 0) {
+                warningsHtml = '<div style="margin-bottom: 20px;">';
+                arcFlashWarnings.forEach(warning => {
+                    const bgColor = warning.level === 'info' ? '#d1fae5' : 
+                                   warning.level === 'warning' ? '#fef3c7' : 
+                                   warning.level === 'danger' ? '#fee2e2' : '#fecaca';
+                    const borderColor = warning.level === 'info' ? '#10b981' : 
+                                       warning.level === 'warning' ? '#f59e0b' : 
+                                       warning.level === 'danger' ? '#ef4444' : '#dc2626';
+                    warningsHtml += `<div style="padding: 15px; background: ${bgColor}; border-left: 4px solid ${borderColor}; margin-bottom: 10px; border-radius: 6px; font-weight: 600;">${warning.message}</div>`;
+                });
+                warningsHtml += '</div>';
+            }
+            
             const html = `
                 <div class="safety-analysis">
                     <h3 style="color: #991b1b; margin-bottom: 20px;">⚡ Arc Flash Analysis Results (IEEE 1584-2018)</h3>
+                    
+                    ${warningsHtml}
                     
                     <div class="executive-summary" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #ef4444;">
                         <div class="summary-grid">
@@ -2984,8 +3053,10 @@
                 component.filterType = document.getElementById('compFilterType').value;
             }
             
+            saveToHistory();
             components.push(component);
             updateComponentList();
+            showToast('Component added successfully', 'success');
         }
         
         function updateComponentList() {
@@ -3097,18 +3168,71 @@
                         warnings.push(`⚠️ Component ${idx + 1}: Very high X/R ratio (${comp.xr}). Verify this is correct.`);
                     }
                 }
+                
+                // Also check rx (R/X) ratios
+                if (comp.rx !== undefined) {
+                    if (comp.rx < 0.01) {
+                        warnings.push(`⚠️ Component ${idx + 1}: Very low R/X ratio (${comp.rx}). Typical values are 0.05-0.5 for transformers.`);
+                    } else if (comp.rx > 2) {
+                        warnings.push(`⚠️ Component ${idx + 1}: High R/X ratio (${comp.rx}). For transformers, typical values are 0.05-0.5.`);
+                    }
+                }
             });
             
-            // Check transformer voltage levels
+            // Check transformer voltage levels and ratings
             components.forEach((comp, idx) => {
                 if (comp.type === 'transformer') {
                     if (comp.primaryV && comp.secondaryV) {
                         if (comp.primaryV === comp.secondaryV) {
                             warnings.push(`⚠️ Transformer ${idx + 1}: Primary and secondary voltages are equal. Is this an auto-transformer?`);
                         }
+                        
+                        // Check for unrealistic voltage ratio
+                        const ratio = Math.max(comp.primaryV, comp.secondaryV) / Math.min(comp.primaryV, comp.secondaryV);
+                        if (ratio > 100) {
+                            warnings.push(`⚠️ Transformer ${idx + 1}: Very high voltage ratio (${ratio.toFixed(1)}:1). Verify voltage values.`);
+                        }
+                    }
+                    
+                    // Check impedance vs power rating consistency
+                    if (comp.impedance && comp.power) {
+                        if (comp.power < 1 && comp.impedance < 3) {
+                            warnings.push(`⚠️ Transformer ${idx + 1}: Small transformer with unusually low impedance (${comp.impedance}%). Typical: 4-6%.`);
+                        }
+                        if (comp.power > 10 && comp.impedance > 12) {
+                            warnings.push(`⚠️ Transformer ${idx + 1}: Large transformer with unusually high impedance (${comp.impedance}%). Typical: 5-10%.`);
+                        }
                     }
                 }
             });
+            
+            // Check cable impedances
+            components.forEach((comp, idx) => {
+                if (comp.type === 'cable') {
+                    if (comp.resistance && comp.reactance) {
+                        const ratio = comp.reactance / comp.resistance;
+                        if (ratio < 0.05) {
+                            warnings.push(`⚠️ Cable ${idx + 1}: Very low X/R ratio (${ratio.toFixed(3)}). Typical for cables: 0.1-1.0.`);
+                        }
+                        if (ratio > 5) {
+                            warnings.push(`⚠️ Cable ${idx + 1}: High X/R ratio (${ratio.toFixed(3)}). Typical for cables: 0.1-1.0. May be overhead line?`);
+                        }
+                    }
+                    
+                    // Check for zero resistance
+                    if (comp.resistance === 0) {
+                        errors.push(`❌ Cable ${idx + 1}: Zero resistance is not realistic. Check component data.`);
+                    }
+                }
+            });
+            
+            // Check for utility source
+            const hasUtilitySource = components.some(c => 
+                c.type === 'utility_isc' || c.type === 'utility_mva' || c.type === 'utility_impedance'
+            );
+            if (!hasUtilitySource) {
+                warnings.push('ℹ️ No utility source defined. Results show fault current at component terminals only.');
+            }
             
             // Check for missing critical data
             components.forEach((comp, idx) => {
