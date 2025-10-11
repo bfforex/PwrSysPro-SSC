@@ -1087,6 +1087,7 @@
                     <button class="btn btn-secondary" onclick="compareComponents()">📊 Compare Components</button>
                     <button class="btn btn-secondary" onclick="generateSpecReport()">📋 Generate Spec Report</button>
                     <button class="btn btn-info" onclick="undoEdit()" title="Undo last edit">↶ Undo</button>
+                    <button class="btn btn-info" onclick="redoEdit()" title="Redo last undo">↷ Redo</button>
                 </div>
                 
                 <div class="equipment-database">
@@ -1297,6 +1298,102 @@
         let calculationResults = null;
         let perUnitResults = null;
         let pointToPointResults = null;
+        
+        // ============================================================================
+        // CALCULATION SAFETY MODULE - Zero-division and NaN protection
+        // ============================================================================
+        
+        /**
+         * Safe division with zero-division protection
+         */
+        function safeDivide(numerator, denominator, defaultValue = 0) {
+            if (denominator === 0 || !isFinite(denominator) || isNaN(denominator)) {
+                console.warn(`Division by zero or invalid denominator detected: ${numerator}/${denominator}`);
+                return defaultValue;
+            }
+            const result = numerator / denominator;
+            if (!isFinite(result) || isNaN(result)) {
+                console.warn(`Invalid division result: ${numerator}/${denominator} = ${result}`);
+                return defaultValue;
+            }
+            return result;
+        }
+        
+        /**
+         * Safe square root with NaN protection
+         */
+        function safeSqrt(value, defaultValue = 0) {
+            if (value < 0 || isNaN(value)) {
+                console.warn(`Invalid square root input: sqrt(${value})`);
+                return defaultValue;
+            }
+            const result = Math.sqrt(value);
+            if (!isFinite(result) || isNaN(result)) {
+                console.warn(`Invalid square root result: sqrt(${value}) = ${result}`);
+                return defaultValue;
+            }
+            return result;
+        }
+        
+        /**
+         * Validate calculation result for NaN/Infinity
+         */
+        function validateCalculationResult(value, name, minAllowed = 0, maxAllowed = 1e6) {
+            if (isNaN(value)) {
+                console.error(`NaN detected in calculation: ${name}`);
+                return { valid: false, message: `Invalid calculation result for ${name}: NaN` };
+            }
+            if (!isFinite(value)) {
+                console.error(`Infinity detected in calculation: ${name}`);
+                return { valid: false, message: `Invalid calculation result for ${name}: Infinity` };
+            }
+            if (value < minAllowed || value > maxAllowed) {
+                console.warn(`${name} out of expected range: ${value} (expected ${minAllowed}-${maxAllowed})`);
+                return { valid: false, message: `${name} value ${value.toFixed(2)} is outside expected range (${minAllowed}-${maxAllowed})` };
+            }
+            return { valid: true };
+        }
+        
+        /**
+         * Sanity check for calculation results
+         */
+        function performSanityChecks(results) {
+            const warnings = [];
+            const errors = [];
+            
+            // Check symmetrical current
+            const symmCheck = validateCalculationResult(results.iscSymm, 'Symmetrical Current', 0.001, 1000);
+            if (!symmCheck.valid) errors.push(symmCheck.message);
+            
+            // Check asymmetrical current should be greater than symmetrical
+            if (results.iscAsymm < results.iscSymm) {
+                warnings.push('⚠️ Asymmetrical current is less than symmetrical current - this is unusual.');
+            }
+            
+            // Check X/R ratio reasonableness
+            if (results.xr < 0.01 || results.xr > 50) {
+                warnings.push(`⚠️ X/R ratio ${results.xr.toFixed(2)} is outside typical range (0.01-50). Verify component data.`);
+            }
+            
+            // Check fault MVA
+            const mvaCheck = validateCalculationResult(results.faultMVA, 'Fault MVA', 0.001, 100000);
+            if (!mvaCheck.valid) errors.push(mvaCheck.message);
+            
+            // Check impedance
+            const zCheck = validateCalculationResult(results.impedance, 'Total Impedance', 0.0001, 1000);
+            if (!zCheck.valid) errors.push(zCheck.message);
+            
+            // Arc flash sanity checks
+            if (results.incidentEnergy !== undefined) {
+                if (results.incidentEnergy < 1.2) {
+                    warnings.push('✓ Incident energy below 1.2 cal/cm² threshold - minimal arc flash hazard.');
+                } else if (results.incidentEnergy > 40) {
+                    warnings.push('⚠️ HIGH HAZARD: Incident energy exceeds 40 cal/cm². Consider arc-resistant equipment.');
+                }
+            }
+            
+            return { warnings, errors };
+        }
         
         // ============================================================================
         // STORAGE MODULE - Data Persistence with localStorage and IndexedDB
@@ -1736,9 +1833,78 @@
         function displayArcFlashResults(results, grounding) {
             const safetyDiv = document.getElementById('safetyResults');
             
+            // Check arc flash thresholds and generate warnings
+            const arcFlashWarnings = [];
+            const THRESHOLD_1_2 = 1.2; // cal/cm² - minimum PPE threshold
+            const THRESHOLD_4 = 4.0;   // cal/cm² - Category 1 limit
+            const THRESHOLD_8 = 8.0;   // cal/cm² - Category 2 limit
+            const THRESHOLD_25 = 25.0; // cal/cm² - Category 3 limit
+            const THRESHOLD_40 = 40.0; // cal/cm² - Category 4 limit
+            
+            if (results.incidentEnergy < THRESHOLD_1_2) {
+                arcFlashWarnings.push({
+                    level: 'info',
+                    message: `✓ SAFE: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) is below 1.2 cal/cm² threshold. Minimal arc flash hazard.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_1_2 && results.incidentEnergy < THRESHOLD_4) {
+                arcFlashWarnings.push({
+                    level: 'warning',
+                    message: `⚠️ CAUTION: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 1 minimum.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_4 && results.incidentEnergy < THRESHOLD_8) {
+                arcFlashWarnings.push({
+                    level: 'warning',
+                    message: `⚠️ CAUTION: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 2.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_8 && results.incidentEnergy < THRESHOLD_25) {
+                arcFlashWarnings.push({
+                    level: 'danger',
+                    message: `⚠️ WARNING: Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 3. Consider additional safety measures.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_25 && results.incidentEnergy < THRESHOLD_40) {
+                arcFlashWarnings.push({
+                    level: 'danger',
+                    message: `⚠️ WARNING: HIGH HAZARD - Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) requires PPE Category 4.`
+                });
+            } else if (results.incidentEnergy >= THRESHOLD_40) {
+                arcFlashWarnings.push({
+                    level: 'critical',
+                    message: `🚨 CRITICAL: EXTREME HAZARD - Incident energy (${results.incidentEnergy.toFixed(2)} cal/cm²) exceeds 40 cal/cm². Consider arc-resistant equipment, remote operation, or de-energization.`
+                });
+            }
+            
+            // Validate arc flash boundary
+            if (results.arcFlashBoundary > 0) {
+                const afbFeet = (results.arcFlashBoundary / 304.8).toFixed(2);
+                if (results.arcFlashBoundary > 3000) {
+                    arcFlashWarnings.push({
+                        level: 'danger',
+                        message: `⚠️ Arc Flash Boundary extends to ${afbFeet} feet - unusually large. Verify calculation inputs.`
+                    });
+                }
+            }
+            
+            // Build warnings HTML
+            let warningsHtml = '';
+            if (arcFlashWarnings.length > 0) {
+                warningsHtml = '<div style="margin-bottom: 20px;">';
+                arcFlashWarnings.forEach(warning => {
+                    const bgColor = warning.level === 'info' ? '#d1fae5' : 
+                                   warning.level === 'warning' ? '#fef3c7' : 
+                                   warning.level === 'danger' ? '#fee2e2' : '#fecaca';
+                    const borderColor = warning.level === 'info' ? '#10b981' : 
+                                       warning.level === 'warning' ? '#f59e0b' : 
+                                       warning.level === 'danger' ? '#ef4444' : '#dc2626';
+                    warningsHtml += `<div style="padding: 15px; background: ${bgColor}; border-left: 4px solid ${borderColor}; margin-bottom: 10px; border-radius: 6px; font-weight: 600;">${warning.message}</div>`;
+                });
+                warningsHtml += '</div>';
+            }
+            
             const html = `
                 <div class="safety-analysis">
                     <h3 style="color: #991b1b; margin-bottom: 20px;">⚡ Arc Flash Analysis Results (IEEE 1584-2018)</h3>
+                    
+                    ${warningsHtml}
                     
                     <div class="executive-summary" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #ef4444;">
                         <div class="summary-grid">
@@ -1821,10 +1987,24 @@
         function calculateArcFlashBoundary(incidentEnergy, workingDistance) {
             // AFB is where incident energy = 1.2 cal/cm²
             const E_threshold = 1.2;
+            
+            // Validate inputs
+            if (incidentEnergy < E_threshold) {
+                // No arc flash boundary needed if incident energy is below threshold
+                return 0;
+            }
+            
             // E is proportional to 1/D²
             // E1/E2 = (D2/D1)²
             // AFB = D * sqrt(E / E_threshold)
-            const AFB = workingDistance * Math.sqrt(incidentEnergy / E_threshold);
+            const AFB = workingDistance * safeSqrt(safeDivide(incidentEnergy, E_threshold, 1), 1);
+            
+            // Validate result
+            if (!isFinite(AFB) || isNaN(AFB) || AFB < 0) {
+                console.error('Invalid arc flash boundary calculation');
+                return workingDistance; // Return working distance as fallback
+            }
+            
             return AFB;
         }
         
@@ -2267,6 +2447,9 @@
             power: { min: 0.001, max: 10000, required: true },
             impedance: { min: 0.01, max: 100, required: true },
             voltage: { min: 0.1, max: 1000, required: true },
+            rx: { min: 0.001, max: 100 },
+            xr: { min: 0.001, max: 100 },
+            frequency: { min: 50, max: 60, required: true }
         };
         
         // Common HTML for voltage zone selector
@@ -2870,8 +3053,10 @@
                 component.filterType = document.getElementById('compFilterType').value;
             }
             
+            saveToHistory();
             components.push(component);
             updateComponentList();
+            showToast('Component added successfully', 'success');
         }
         
         function updateComponentList() {
@@ -2941,8 +3126,10 @@
         }
         
         function removeComponent(index) {
+            saveToHistory();
             components.splice(index, 1);
             updateComponentList();
+            showToast('Component removed', 'success');
         }
         
         function getTypicalRXRatio(type, power) {
@@ -2981,18 +3168,71 @@
                         warnings.push(`⚠️ Component ${idx + 1}: Very high X/R ratio (${comp.xr}). Verify this is correct.`);
                     }
                 }
+                
+                // Also check rx (R/X) ratios
+                if (comp.rx !== undefined) {
+                    if (comp.rx < 0.01) {
+                        warnings.push(`⚠️ Component ${idx + 1}: Very low R/X ratio (${comp.rx}). Typical values are 0.05-0.5 for transformers.`);
+                    } else if (comp.rx > 2) {
+                        warnings.push(`⚠️ Component ${idx + 1}: High R/X ratio (${comp.rx}). For transformers, typical values are 0.05-0.5.`);
+                    }
+                }
             });
             
-            // Check transformer voltage levels
+            // Check transformer voltage levels and ratings
             components.forEach((comp, idx) => {
                 if (comp.type === 'transformer') {
                     if (comp.primaryV && comp.secondaryV) {
                         if (comp.primaryV === comp.secondaryV) {
                             warnings.push(`⚠️ Transformer ${idx + 1}: Primary and secondary voltages are equal. Is this an auto-transformer?`);
                         }
+                        
+                        // Check for unrealistic voltage ratio
+                        const ratio = Math.max(comp.primaryV, comp.secondaryV) / Math.min(comp.primaryV, comp.secondaryV);
+                        if (ratio > 100) {
+                            warnings.push(`⚠️ Transformer ${idx + 1}: Very high voltage ratio (${ratio.toFixed(1)}:1). Verify voltage values.`);
+                        }
+                    }
+                    
+                    // Check impedance vs power rating consistency
+                    if (comp.impedance && comp.power) {
+                        if (comp.power < 1 && comp.impedance < 3) {
+                            warnings.push(`⚠️ Transformer ${idx + 1}: Small transformer with unusually low impedance (${comp.impedance}%). Typical: 4-6%.`);
+                        }
+                        if (comp.power > 10 && comp.impedance > 12) {
+                            warnings.push(`⚠️ Transformer ${idx + 1}: Large transformer with unusually high impedance (${comp.impedance}%). Typical: 5-10%.`);
+                        }
                     }
                 }
             });
+            
+            // Check cable impedances
+            components.forEach((comp, idx) => {
+                if (comp.type === 'cable') {
+                    if (comp.resistance && comp.reactance) {
+                        const ratio = comp.reactance / comp.resistance;
+                        if (ratio < 0.05) {
+                            warnings.push(`⚠️ Cable ${idx + 1}: Very low X/R ratio (${ratio.toFixed(3)}). Typical for cables: 0.1-1.0.`);
+                        }
+                        if (ratio > 5) {
+                            warnings.push(`⚠️ Cable ${idx + 1}: High X/R ratio (${ratio.toFixed(3)}). Typical for cables: 0.1-1.0. May be overhead line?`);
+                        }
+                    }
+                    
+                    // Check for zero resistance
+                    if (comp.resistance === 0) {
+                        errors.push(`❌ Cable ${idx + 1}: Zero resistance is not realistic. Check component data.`);
+                    }
+                }
+            });
+            
+            // Check for utility source
+            const hasUtilitySource = components.some(c => 
+                c.type === 'utility_isc' || c.type === 'utility_mva' || c.type === 'utility_impedance'
+            );
+            if (!hasUtilitySource) {
+                warnings.push('ℹ️ No utility source defined. Results show fault current at component terminals only.');
+            }
             
             // Check for missing critical data
             components.forEach((comp, idx) => {
@@ -3141,7 +3381,7 @@
                     
                     // Calculate R and X from Z and R/X ratio
                     // Z² = R² + X², R = X × (R/X)
-                    const xPU = zPU / Math.sqrt(1 + rxRatio * rxRatio);
+                    const xPU = safeDivide(zPU, safeSqrt(1 + rxRatio * rxRatio, 1), 0);
                     const rPU = xPU * rxRatio;
                     
                     totalImpedance.r += rPU * zBase;
@@ -3178,7 +3418,7 @@
                     const xdPU = (comp.reactance / 100) * (baseMVA / comp.power);
                     
                     const rxRatio = comp.rx;
-                    const xPU = xdPU / Math.sqrt(1 + rxRatio * rxRatio);
+                    const xPU = safeDivide(xdPU, safeSqrt(1 + rxRatio * rxRatio, 1), 0);
                     const rPU = xPU * rxRatio;
                     
                     totalImpedance.r += rPU * zBase;
@@ -3194,16 +3434,16 @@
                     const pf = comp.pf;
                     
                     // Full load current
-                    const fla = (powerKW * 1000) / (Math.sqrt(3) * comp.voltage * eff * pf);
+                    const fla = safeDivide(powerKW * 1000, safeSqrt(3) * comp.voltage * eff * pf, 1);
                     const lra = fla * comp.lrc;
                     
                     // Motor impedance at locked rotor
-                    const zMotor = (comp.voltage / Math.sqrt(3)) / lra;
+                    const zMotor = safeDivide(safeDivide(comp.voltage, safeSqrt(3), 1), lra, 0.001);
                     
                     // Motors are highly reactive at locked rotor, typical X/R = 10-20
                     const motorXR = 15; // Typical for locked rotor
-                    const xMotor = zMotor / Math.sqrt(1 + 1/(motorXR * motorXR));
-                    const rMotor = xMotor / motorXR;
+                    const xMotor = safeDivide(zMotor, safeSqrt(1 + 1/(motorXR * motorXR), 1), 0);
+                    const rMotor = safeDivide(xMotor, motorXR, 0);
                     
                     totalImpedance.r += rMotor;
                     totalImpedance.x += xMotor;
@@ -3214,9 +3454,9 @@
                     });
                 } else if (comp.type === 'utility_isc') {
                     // Calculate impedance from short circuit current
-                    const z = (comp.voltage * 1000) / (Math.sqrt(3) * comp.isc * 1000);
-                    const x = z * comp.xr / Math.sqrt(1 + comp.xr * comp.xr);
-                    const r = z / Math.sqrt(1 + comp.xr * comp.xr);
+                    const z = safeDivide(comp.voltage * 1000, safeSqrt(3) * comp.isc * 1000, 0.001);
+                    const x = safeDivide(z * comp.xr, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
+                    const r = safeDivide(z, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     
                     totalImpedance.r += r;
                     totalImpedance.x += x;
@@ -3227,10 +3467,10 @@
                     });
                 } else if (comp.type === 'utility_mva') {
                     // Calculate impedance from fault MVA
-                    const isc = (comp.mva * 1000) / (Math.sqrt(3) * comp.voltage*1000);
-                    const z = (comp.voltage * 1000) / (Math.sqrt(3) * isc * 1000);
-                    const x = z * comp.xr / Math.sqrt(1 + comp.xr * comp.xr);
-                    const r = z / Math.sqrt(1 + comp.xr * comp.xr);
+                    const isc = safeDivide(comp.mva * 1000, safeSqrt(3) * comp.voltage*1000, 0.001);
+                    const z = safeDivide(comp.voltage * 1000, safeSqrt(3) * isc * 1000, 0.001);
+                    const x = safeDivide(z * comp.xr, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
+                    const r = safeDivide(z, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     
                     totalImpedance.r += r;
                     totalImpedance.x += x;
@@ -3241,11 +3481,11 @@
                     });
                 } else if (comp.type === 'utility_impedance') {
                     // Calculate impedance from percent impedance
-                    const zBase = (comp.voltage * comp.voltage) / comp.baseMVA;
-                    const zPU = comp.impedance / 100;
+                    const zBase = safeDivide(comp.voltage * comp.voltage, comp.baseMVA, 0.001);
+                    const zPU = safeDivide(comp.impedance, 100, 0.01);
                     const z = zPU * zBase;
-                    const x = z * comp.xr / Math.sqrt(1 + comp.xr * comp.xr);
-                    const r = z / Math.sqrt(1 + comp.xr * comp.xr);
+                    const x = safeDivide(z * comp.xr, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
+                    const r = safeDivide(z, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     
                     totalImpedance.r += r;
                     totalImpedance.x += x;
@@ -3257,8 +3497,18 @@
                 }
             });
             
-            const totalZ = Math.sqrt(totalImpedance.r * totalImpedance.r + totalImpedance.x * totalImpedance.x);
-            const totalXR = totalImpedance.x / totalImpedance.r;
+            const totalZ = safeSqrt(totalImpedance.r * totalImpedance.r + totalImpedance.x * totalImpedance.x, 0.0001);
+            const totalXR = safeDivide(totalImpedance.x, totalImpedance.r, 10);
+            
+            // Validate intermediate results
+            if (totalZ < 0.00001) {
+                alert('Error: Total impedance is too low (near zero). Check component values.');
+                return;
+            }
+            if (totalXR < 0.001 || totalXR > 100) {
+                const proceed = confirm(`Warning: X/R ratio (${totalXR.toFixed(2)}) is unusual. Typical values: 0.05-20. Continue anyway?`);
+                if (!proceed) return;
+            }
             
             steps.push({
                 title: 'Total Circuit Impedance',
@@ -3266,9 +3516,16 @@
             });
             
             // Calculate symmetrical short circuit current
-            const vPhase = (systemVoltage * cFactor) / Math.sqrt(3);
-            const iscSymm = vPhase / totalZ;
-            const iscSymmKA = iscSymm / 1000;
+            const vPhase = safeDivide(systemVoltage * cFactor, safeSqrt(3), 0);
+            const iscSymm = safeDivide(vPhase, totalZ, 0);
+            const iscSymmKA = safeDivide(iscSymm, 1000, 0);
+            
+            // Validate symmetrical current result
+            const symmValidation = validateCalculationResult(iscSymmKA, 'Symmetrical Current (kA)', 0.001, 1000);
+            if (!symmValidation.valid) {
+                alert('Calculation Error: ' + symmValidation.message);
+                return;
+            }
             
             // Calculate asymmetrical (peak) current per standard
             let iscAsymm, iscAsymmKA, kappa, multiplier;
@@ -3285,8 +3542,8 @@
                     kappaNote = `<br>κ = 1.02 + 0.98 × e^(-3R/X) = 1.02 + 0.98 × e^(-3×${totalImpedance.r.toFixed(4)}/${totalImpedance.x.toFixed(4)})<br>κ = ${kappa.toFixed(3)}`;
                 }
                 
-                iscAsymm = kappa * Math.sqrt(2) * iscSymm;
-                iscAsymmKA = iscAsymm / 1000;
+                iscAsymm = kappa * safeSqrt(2) * iscSymm;
+                iscAsymmKA = safeDivide(iscAsymm, 1000, 0);
                 multiplier = kappa; // For result storage
                 
                 steps.push({
@@ -3295,9 +3552,9 @@
                 });
             } else {
                 // IEEE: Asymmetrical = Symmetrical × multiplier based on X/R
-                multiplier = Math.sqrt(1 + 2 * Math.pow(Math.E, -Math.PI / totalXR));
+                multiplier = safeSqrt(1 + 2 * Math.pow(Math.E, safeDivide(-Math.PI, totalXR, -0.1)), 1.0);
                 iscAsymm = iscSymm * multiplier;
-                iscAsymmKA = iscAsymm / 1000;
+                iscAsymmKA = safeDivide(iscAsymm, 1000, 0);
                 kappa = multiplier; // For result storage
                 
                 steps.push({
@@ -3307,7 +3564,7 @@
             }
             
             // Calculate fault MVA
-            const faultMVA = (Math.sqrt(3) * systemVoltage * iscSymm) / 1000000;
+            const faultMVA = safeDivide(safeSqrt(3) * systemVoltage * iscSymm, 1000000, 0);
             
             steps.push({
                 title: 'Fault MVA',
@@ -3333,6 +3590,18 @@
                 standard: standard,
                 kappa: standard === 'iec' ? kappa : multiplier
             };
+            
+            // Perform sanity checks on results
+            const sanityCheck = performSanityChecks(calculationResults);
+            if (sanityCheck.errors.length > 0) {
+                alert('Calculation Errors Detected:\n' + sanityCheck.errors.join('\n'));
+                return;
+            }
+            if (sanityCheck.warnings.length > 0) {
+                // Display warnings but continue
+                console.log('Calculation Warnings:', sanityCheck.warnings);
+            }
+            
             displayResults();
         }
         
@@ -4428,13 +4697,15 @@
         // Component Editing Functions
         let editingIndex = -1;
         let componentHistory = [];
+        let componentRedoStack = [];
+        const MAX_HISTORY_SIZE = 50; // Limit history to prevent memory issues
         
         function editComponent(index) {
             editingIndex = index;
             const comp = components[index];
             
             // Store in history for undo
-            componentHistory.push(JSON.parse(JSON.stringify(components)));
+            saveToHistory();
             
             const modal = document.getElementById('editModal');
             const modalBody = document.getElementById('editModalBody');
@@ -4499,9 +4770,46 @@
         
         function undoEdit() {
             if (componentHistory.length > 0) {
+                // Save current state to redo stack
+                componentRedoStack.push(JSON.parse(JSON.stringify(components)));
+                if (componentRedoStack.length > MAX_HISTORY_SIZE) {
+                    componentRedoStack.shift(); // Remove oldest
+                }
+                
+                // Restore previous state
                 components = componentHistory.pop();
                 updateComponentList();
+                showToast('Undo successful', 'success');
+            } else {
+                showToast('Nothing to undo', 'info');
             }
+        }
+        
+        function redoEdit() {
+            if (componentRedoStack.length > 0) {
+                // Save current state to history
+                componentHistory.push(JSON.parse(JSON.stringify(components)));
+                if (componentHistory.length > MAX_HISTORY_SIZE) {
+                    componentHistory.shift(); // Remove oldest
+                }
+                
+                // Restore next state
+                components = componentRedoStack.pop();
+                updateComponentList();
+                showToast('Redo successful', 'success');
+            } else {
+                showToast('Nothing to redo', 'info');
+            }
+        }
+        
+        function saveToHistory() {
+            // Save current state before making changes
+            componentHistory.push(JSON.parse(JSON.stringify(components)));
+            if (componentHistory.length > MAX_HISTORY_SIZE) {
+                componentHistory.shift(); // Remove oldest
+            }
+            // Clear redo stack when new action is performed
+            componentRedoStack = [];
         }
         
         // Custom Component Database
@@ -5230,6 +5538,158 @@
                 closeDatabaseModal();
             }
         }
+        
+        // ============================================================================
+        // UNIT TESTS MODULE - Testing core calculation functions
+        // ============================================================================
+        
+        /**
+         * Run unit tests for core calculation functions
+         * Call this from browser console: runUnitTests()
+         */
+        function runUnitTests() {
+            console.log('='.repeat(60));
+            console.log('Running Unit Tests for Short Circuit Calculator');
+            console.log('='.repeat(60));
+            
+            let passed = 0;
+            let failed = 0;
+            
+            // Test 1: Safe Division
+            console.log('\n--- Test 1: Safe Division ---');
+            try {
+                const result1 = safeDivide(10, 2);
+                console.assert(result1 === 5, 'safeDivide(10, 2) should equal 5');
+                
+                const result2 = safeDivide(10, 0, 999);
+                console.assert(result2 === 999, 'safeDivide(10, 0, 999) should return default 999');
+                
+                const result3 = safeDivide(10, Infinity, 888);
+                console.assert(result3 === 888, 'safeDivide with Infinity denominator should return default');
+                
+                console.log('✓ Safe Division tests passed');
+                passed += 3;
+            } catch (e) {
+                console.error('✗ Safe Division test failed:', e);
+                failed += 3;
+            }
+            
+            // Test 2: Safe Square Root
+            console.log('\n--- Test 2: Safe Square Root ---');
+            try {
+                const result1 = safeSqrt(9);
+                console.assert(result1 === 3, 'safeSqrt(9) should equal 3');
+                
+                const result2 = safeSqrt(-1, 0);
+                console.assert(result2 === 0, 'safeSqrt(-1, 0) should return default 0');
+                
+                const result3 = safeSqrt(NaN, 5);
+                console.assert(result3 === 5, 'safeSqrt(NaN) should return default');
+                
+                console.log('✓ Safe Square Root tests passed');
+                passed += 3;
+            } catch (e) {
+                console.error('✗ Safe Square Root test failed:', e);
+                failed += 3;
+            }
+            
+            // Test 3: Validation of Calculation Results
+            console.log('\n--- Test 3: Result Validation ---');
+            try {
+                const valid1 = validateCalculationResult(50, 'Test Value', 0, 100);
+                console.assert(valid1.valid === true, 'Valid result should pass');
+                
+                const valid2 = validateCalculationResult(NaN, 'Test Value', 0, 100);
+                console.assert(valid2.valid === false, 'NaN should fail validation');
+                
+                const valid3 = validateCalculationResult(Infinity, 'Test Value', 0, 100);
+                console.assert(valid3.valid === false, 'Infinity should fail validation');
+                
+                const valid4 = validateCalculationResult(150, 'Test Value', 0, 100);
+                console.assert(valid4.valid === false, 'Out of range value should fail');
+                
+                console.log('✓ Result Validation tests passed');
+                passed += 4;
+            } catch (e) {
+                console.error('✗ Result Validation test failed:', e);
+                failed += 4;
+            }
+            
+            // Test 4: Typical R/X Ratios
+            console.log('\n--- Test 4: Typical R/X Ratios ---');
+            try {
+                const ratio1 = getTypicalRXRatio('transformer', 0.5);
+                console.assert(ratio1 === 0.05, 'Small transformer R/X should be 0.05');
+                
+                const ratio2 = getTypicalRXRatio('transformer', 15);
+                console.assert(ratio2 === 0.15, 'Large transformer R/X should be 0.15');
+                
+                console.log('✓ Typical R/X Ratio tests passed');
+                passed += 2;
+            } catch (e) {
+                console.error('✗ Typical R/X Ratio test failed:', e);
+                failed += 2;
+            }
+            
+            // Test 5: Arc Flash Boundary Calculation
+            console.log('\n--- Test 5: Arc Flash Boundary ---');
+            try {
+                const afb1 = calculateArcFlashBoundary(4.8, 610);
+                console.assert(afb1 > 0 && isFinite(afb1), 'AFB should be positive and finite');
+                console.assert(afb1 > 610, 'AFB should be greater than working distance for energy > 1.2');
+                
+                const afb2 = calculateArcFlashBoundary(0.5, 610);
+                console.assert(afb2 === 0, 'AFB should be 0 for energy below 1.2 cal/cm²');
+                
+                const afb3 = calculateArcFlashBoundary(1.2, 610);
+                console.assert(afb3 === 610, 'AFB should equal working distance at exactly 1.2 cal/cm²');
+                
+                console.log('✓ Arc Flash Boundary tests passed');
+                passed += 3;
+            } catch (e) {
+                console.error('✗ Arc Flash Boundary test failed:', e);
+                failed += 3;
+            }
+            
+            // Test 6: Input Validation
+            console.log('\n--- Test 6: Input Validation ---');
+            try {
+                const val1 = validateInput(500, 'systemVoltage');
+                console.assert(val1.valid === true, 'Valid voltage should pass');
+                
+                const val2 = validateInput(50, 'systemVoltage');
+                console.assert(val2.valid === false, 'Voltage below minimum should fail');
+                
+                const val3 = validateInput('abc', 'systemVoltage');
+                console.assert(val3.valid === false, 'Non-numeric value should fail');
+                
+                const val4 = validateInput('', 'systemVoltage');
+                console.assert(val4.valid === false, 'Empty required field should fail');
+                
+                console.log('✓ Input Validation tests passed');
+                passed += 4;
+            } catch (e) {
+                console.error('✗ Input Validation test failed:', e);
+                failed += 4;
+            }
+            
+            // Summary
+            console.log('\n' + '='.repeat(60));
+            console.log(`Test Summary: ${passed} passed, ${failed} failed`);
+            console.log('='.repeat(60));
+            
+            if (failed === 0) {
+                console.log('✓ All tests passed!');
+                return true;
+            } else {
+                console.error('✗ Some tests failed. Review the output above.');
+                return false;
+            }
+        }
+        
+        // Auto-run tests in development (comment out in production)
+        // Uncomment the line below to run tests on page load
+        // document.addEventListener('DOMContentLoaded', () => setTimeout(runUnitTests, 1000));
     </script>
     
     <!-- Edit Component Modal -->
