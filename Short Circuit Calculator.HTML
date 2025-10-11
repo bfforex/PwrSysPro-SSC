@@ -4089,7 +4089,7 @@
                             </tr>
                         </table>
                         <div style="margin-top: 10px; font-size: 0.9em; color: #64748b;">
-                            <em>Note: NFPA 70E-2024 terminology - "Shock Protection Boundaries" clarifies electrical shock hazard zones</em>
+                            <em>Note: NFPA 70E-2024 terminology - "Shock Protection Boundaries" replaces previous boundary terminology to clarify electrical shock hazard zones</em>
                         </div>
                     </div>
                     
@@ -4120,10 +4120,10 @@
                     
                     <div style="margin-top: 20px; padding: 15px; background: #e0f2fe; border-left: 4px solid #0284c7; border-radius: 8px;">
                         <strong>✓ EQUIPMENT RATING VALIDATION (NFPA 70E-2024):</strong><br>
-                        • Verify circuit breaker interrupting rating ≥ ${calculationResults.iscSymm.toFixed(2)} kA<br>
-                        • Verify momentary rating ≥ ${calculationResults.iscAsymm.toFixed(2)} kA<br>
-                        • Check equipment withstand rating against fault MVA (${calculationResults.faultMVA.toFixed(2)} MVA)<br>
-                        • Confirm X/R ratio compatibility (calculated: ${calculationResults.xr.toFixed(2)})<br>
+                        • Verify circuit breaker interrupting rating ≥ ${results.iscSymm.toFixed(2)} kA<br>
+                        • Verify momentary rating ≥ ${results.iscAsymm.toFixed(2)} kA<br>
+                        • Check equipment withstand rating against fault MVA (${results.faultMVA.toFixed(2)} MVA)<br>
+                        • Confirm X/R ratio compatibility (calculated: ${results.xr.toFixed(2)})<br>
                         • Validate arc flash labels match current system conditions<br>
                         • Ensure all equipment ratings documented and current<br>
                         • Review equipment condition and maintenance records
