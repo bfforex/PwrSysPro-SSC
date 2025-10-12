@@ -558,20 +558,71 @@ class CalculationOrchestrator {
             return;
         }
         
-        const motorTotals = this.state.motorContribution.totals;
+        const motorData = this.state.motorContribution;
         
-        // Add motor contribution to each bus (assuming motors at low voltage)
-        this.state.shortCircuit.forEach(busResult => {
-            // Add motor contribution to first-cycle current
-            busResult.faultCurrents.threePhaseWithMotors = 
-                busResult.faultCurrents.threePhase + motorTotals.firstCycle;
-            busResult.faultCurrentsKA.threePhaseWithMotors = 
-                busResult.faultCurrentsKA.threePhase + motorTotals.firstCycle / 1000;
-            
-            // Motor contribution percentage
-            busResult.motorContributionPercent = 
-                (motorTotals.firstCycle / busResult.faultCurrents.threePhase) * 100;
+        // Group motors by bus
+        const motorsByBus = {};
+        motorData.motors.forEach(motor => {
+            const busId = motor.busConnection || 'Unknown';
+            if (!motorsByBus[busId]) {
+                motorsByBus[busId] = {
+                    firstCycle: 0,
+                    interrupting: 0,
+                    sustained: 0,
+                    motors: []
+                };
+            }
+            motorsByBus[busId].firstCycle += motor.contribution.firstCycle;
+            motorsByBus[busId].interrupting += motor.contribution.interrupting;
+            motorsByBus[busId].sustained += motor.contribution.sustained;
+            motorsByBus[busId].motors.push(motor);
         });
+        
+        // Add motor contribution to each bus
+        this.state.shortCircuit.forEach(busResult => {
+            const busMotors = motorsByBus[busResult.busId] || motorsByBus[busResult.busName];
+            
+            if (busMotors) {
+                // Add motor contribution as parallel current source (IEEE 141)
+                // Motors contribute additional current, not series impedance
+                const motorFirstCycleKA = busMotors.firstCycle / 1000;
+                const motorInterruptingKA = busMotors.interrupting / 1000;
+                const motorSustainedKA = busMotors.sustained / 1000;
+                
+                // Store motor contribution separately
+                busResult.motorContribution = {
+                    firstCycleKA: motorFirstCycleKA,
+                    interruptingKA: motorInterruptingKA,
+                    sustainedKA: motorSustainedKA,
+                    count: busMotors.motors.length,
+                    motors: busMotors.motors
+                };
+                
+                // Add to fault currents (parallel source contribution)
+                busResult.faultCurrentsKA.threePhaseWithMotors = 
+                    busResult.faultCurrentsKA.threePhase + motorFirstCycleKA;
+                busResult.faultCurrentsKA.interruptingWithMotors = 
+                    busResult.faultCurrentsKA.threePhase + motorInterruptingKA;
+                busResult.faultCurrentsKA.sustainedWithMotors = 
+                    busResult.faultCurrentsKA.threePhase + motorSustainedKA;
+                
+                // Calculate motor contribution percentage
+                busResult.motorContributionPercent = {
+                    firstCycle: (motorFirstCycleKA / busResult.faultCurrentsKA.threePhase) * 100,
+                    interrupting: (motorInterruptingKA / busResult.faultCurrentsKA.threePhase) * 100,
+                    sustained: (motorSustainedKA / busResult.faultCurrentsKA.threePhase) * 100
+                };
+                
+                this.logStep(`Bus ${busResult.busName}: Added motor contribution (${motorFirstCycleKA.toFixed(2)} kA first-cycle from ${busMotors.motors.length} motor(s))`);
+            } else {
+                // No motors at this bus
+                busResult.faultCurrentsKA.threePhaseWithMotors = busResult.faultCurrentsKA.threePhase;
+                busResult.motorContribution = null;
+                busResult.motorContributionPercent = null;
+            }
+        });
+        
+        this.addAssumption('Motor Contribution', 'Motors modeled as parallel current sources per IEEE 141, not series impedances');
     }
     
     /**
@@ -642,80 +693,150 @@ class CalculationOrchestrator {
     calculateArcFlash(shortCircuitResults) {
         const results = [];
         
+        // Get arc flash parameters from project data
+        const arcFlashParams = this.projectData.arcFlashParams || {};
+        const workingDistance = arcFlashParams.workingDistance || 450; // mm
+        const arcDuration = arcFlashParams.arcDuration || 0.1; // seconds (6 cycles @ 60Hz)
+        const enclosureType = arcFlashParams.enclosureType || 'VCB';
+        const equipmentType = arcFlashParams.equipmentType || 'Switchgear';
+        
         shortCircuitResults.forEach(scResult => {
-            const boltedFaultKA = scResult.faultCurrentsKA.threePhase;
+            const boltedFaultKA = scResult.faultCurrentsKA.threePhaseWithMotors || 
+                                  scResult.faultCurrentsKA.threePhase;
             const voltage = scResult.voltage;
             
             // Check if arc flash calculation is applicable
-            const applicable = voltage >= 208 && voltage <= 15000;
+            const voltageInRange = voltage >= 208 && voltage <= 15000;
             
-            if (!applicable) {
+            // Check for required parameters
+            const missingFields = [];
+            if (!voltageInRange) {
+                missingFields.push(`Voltage ${voltage}V outside IEEE 1584-2018 range (208-15000V)`);
+            }
+            if (!boltedFaultKA || boltedFaultKA <= 0) {
+                missingFields.push('Valid bolted fault current required');
+            }
+            if (!workingDistance || workingDistance <= 0) {
+                missingFields.push('Working distance not specified');
+            }
+            if (!arcDuration || arcDuration <= 0) {
+                missingFields.push('Arc duration (clearing time) not specified');
+            }
+            
+            if (missingFields.length > 0) {
                 results.push({
                     busId: scResult.busId,
                     busName: scResult.busName,
+                    voltage: voltage,
+                    boltedFaultCurrent: boltedFaultKA,
                     applicable: false,
-                    reason: `Voltage ${voltage}V outside IEEE 1584-2018 range (208-15000V)`
+                    evaluated: false,
+                    status: 'Not Evaluated',
+                    missingFields: missingFields,
+                    reason: 'Missing required parameters or out of range'
                 });
                 return;
             }
             
             // Use arc flash calculation module if available
             if (typeof calculateArcFlashIEEE1584_2018 !== 'undefined') {
-                const arcFlash = calculateArcFlashIEEE1584_2018({
-                    voltage: voltage,
-                    boltedFaultCurrent: boltedFaultKA,
-                    workingDistance: 450, // mm, default
-                    arcDuration: 0.1, // seconds, default 6 cycles
-                    equipmentGap: voltage < 1000 ? 32 : 104, // mm
-                    enclosureType: 'VCB'
-                });
-                
-                // Get PPE recommendations
-                let ppe = null;
-                if (typeof generatePPEReport !== 'undefined' && arcFlash.applicable) {
-                    ppe = generatePPEReport(arcFlash).ppe;
+                try {
+                    const equipmentGap = voltage < 1000 ? 32 : 104; // mm, typical for enclosure type
+                    
+                    const arcFlash = calculateArcFlashIEEE1584_2018({
+                        voltage: voltage,
+                        boltedFaultCurrent: boltedFaultKA,
+                        workingDistance: workingDistance,
+                        arcDuration: arcDuration,
+                        equipmentGap: equipmentGap,
+                        enclosureType: enclosureType
+                    });
+                    
+                    // Get PPE recommendations
+                    let ppe = null;
+                    if (typeof generatePPEReport !== 'undefined' && arcFlash.applicable) {
+                        ppe = generatePPEReport(arcFlash).ppe;
+                    }
+                    
+                    results.push({
+                        busId: scResult.busId,
+                        busName: scResult.busName,
+                        voltage: voltage,
+                        boltedFaultCurrent: boltedFaultKA,
+                        applicable: true,
+                        evaluated: true,
+                        status: 'Evaluated',
+                        method: 'IEEE 1584-2018',
+                        ...arcFlash,
+                        ppe: ppe,
+                        parameters: {
+                            workingDistance: workingDistance,
+                            arcDuration: arcDuration,
+                            equipmentGap: equipmentGap,
+                            enclosureType: enclosureType
+                        }
+                    });
+                    
+                    // Add assumptions
+                    this.addAssumption('Arc Flash', 
+                        `${scResult.busName}: Working distance ${workingDistance}mm, Arc duration ${(arcDuration*1000).toFixed(0)}ms, Equipment: ${enclosureType}`);
+                } catch (error) {
+                    results.push({
+                        busId: scResult.busId,
+                        busName: scResult.busName,
+                        voltage: voltage,
+                        boltedFaultCurrent: boltedFaultKA,
+                        applicable: false,
+                        evaluated: false,
+                        status: 'Calculation Error',
+                        error: error.message
+                    });
                 }
-                
-                results.push({
-                    busId: scResult.busId,
-                    busName: scResult.busName,
-                    voltage: voltage,
-                    boltedFaultCurrent: boltedFaultKA,
-                    applicable: true,
-                    ...arcFlash,
-                    ppe: ppe
-                });
-                
-                // Add assumptions
-                this.addAssumption('Arc Flash', 
-                    `Working distance: 450mm, Arc duration: 100ms (6 cycles), Equipment: VCB`);
             } else {
                 // Fallback: basic arc flash estimation
                 const arcingCurrent = boltedFaultKA * 0.85; // Typical 85% of bolted
-                const workingDistance = 450; // mm
-                const arcDuration = 0.1; // seconds
                 
-                // Simplified incident energy calculation
+                // Simplified incident energy calculation (conservative)
+                // Based on empirical formula: E ≈ (I × V × t) / (4.184 × d²)
                 const incidentEnergy = (arcingCurrent * voltage * arcDuration) / 
                     (4.184 * Math.pow(workingDistance / 1000, 2));
                 
                 // Arc flash boundary (distance where E = 1.2 cal/cm²)
                 const afbMm = workingDistance * Math.sqrt(incidentEnergy / 1.2);
                 
+                // Determine PPE category based on incident energy (NFPA 70E-2024)
+                let ppeCategory = 0;
+                if (incidentEnergy <= 1.2) ppeCategory = 0;
+                else if (incidentEnergy <= 4) ppeCategory = 1;
+                else if (incidentEnergy <= 8) ppeCategory = 2;
+                else if (incidentEnergy <= 25) ppeCategory = 3;
+                else if (incidentEnergy <= 40) ppeCategory = 4;
+                else ppeCategory = '>4';
+                
                 results.push({
                     busId: scResult.busId,
                     busName: scResult.busName,
                     voltage: voltage,
                     boltedFaultCurrent: boltedFaultKA,
                     applicable: true,
+                    evaluated: true,
+                    status: 'Evaluated (Simplified)',
+                    method: 'Simplified Empirical',
                     arcingCurrent: arcingCurrent,
                     incidentEnergy: incidentEnergy,
                     arcFlashBoundary: afbMm,
-                    workingDistance: workingDistance,
-                    arcDuration: arcDuration
+                    ppe: {
+                        category: ppeCategory,
+                        arcRating: Math.max(4, incidentEnergy)
+                    },
+                    parameters: {
+                        workingDistance: workingDistance,
+                        arcDuration: arcDuration
+                    }
                 });
                 
-                this.addAssumption('Arc Flash', 'Simplified calculation used - IEEE 1584-2018 module not available');
+                this.addAssumption('Arc Flash', 
+                    `${scResult.busName}: Simplified calculation used (IEEE 1584-2018 module not available). Results are conservative estimates.`);
             }
         });
         

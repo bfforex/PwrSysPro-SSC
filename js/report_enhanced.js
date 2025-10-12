@@ -251,11 +251,11 @@ async function generateEnhancedPDF(results, projectData) {
         addSectionHeader('Arc Flash Hazard Analysis (IEEE 1584-2018)');
         
         const afData = [
-            ['Bus', 'Voltage (V)', 'I_bolted (kA)', 'I_arc (kA)', 'Inc. Energy (cal/cm\u00B2)', 'AFB (mm)', 'PPE Cat.']
+            ['Bus', 'Voltage (V)', 'I_bolted (kA)', 'I_arc (kA)', 'Inc. Energy (cal/cm\u00B2)', 'AFB (mm)', 'PPE Cat.', 'Status']
         ];
         
         results.arcFlash.forEach(afResult => {
-            if (afResult.applicable) {
+            if (afResult.evaluated && afResult.applicable) {
                 afData.push([
                     afResult.busName,
                     afResult.voltage.toFixed(0),
@@ -263,20 +263,51 @@ async function generateEnhancedPDF(results, projectData) {
                     (afResult.arcingCurrent || 0).toFixed(2),
                     (afResult.incidentEnergy || 0).toFixed(2),
                     (afResult.arcFlashBoundary || 0).toFixed(0),
-                    afResult.ppe?.category || 'N/A'
+                    afResult.ppe?.category || 'N/A',
+                    afResult.method || 'Calculated'
                 ]);
             } else {
                 afData.push([
                     afResult.busName,
-                    afResult.voltage.toFixed(0),
+                    afResult.voltage ? afResult.voltage.toFixed(0) : 'N/A',
+                    afResult.boltedFaultCurrent ? afResult.boltedFaultCurrent.toFixed(2) : 'N/A',
                     'N/A',
                     'N/A',
                     'N/A',
                     'N/A',
-                    afResult.reason || 'Not Applicable'
+                    afResult.status || 'Not Evaluated'
                 ]);
             }
         });
+        
+        // Add not-evaluated details if present
+        const notEvaluated = results.arcFlash.filter(af => !af.evaluated);
+        if (notEvaluated.length > 0) {
+            checkPageBreak(30);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(239, 68, 68);
+            doc.text('Not Evaluated Buses - Missing Parameters:', 20, yPos + 5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            yPos += 11;
+            
+            notEvaluated.forEach(afResult => {
+                checkPageBreak(20);
+                doc.text(`\u2022 ${afResult.busName}:`, 25, yPos);
+                yPos += 5;
+                if (afResult.missingFields && afResult.missingFields.length > 0) {
+                    afResult.missingFields.forEach(field => {
+                        doc.text(`  - ${field}`, 30, yPos);
+                        yPos += 5;
+                    });
+                } else {
+                    doc.text(`  - ${afResult.reason || 'Unknown reason'}`, 30, yPos);
+                    yPos += 5;
+                }
+                yPos += 2;
+            });
+            yPos += 3;
+        }
         
         doc.autoTable({
             startY: yPos,
@@ -354,6 +385,7 @@ async function generateEnhancedPDF(results, projectData) {
         const standardAssumptions = [
             'Transformer X/R ratio: 10 (if not specified)',
             'Motor X/R ratio at locked rotor: 15 (typical for induction motors)',
+            'Motors modeled as parallel current sources per IEEE 141',
             'Cable temperature correction: 75\u00B0C copper, factor 1.216',
             'Arc flash working distance: 450mm (typical for low voltage equipment)',
             'Arc flash duration: 100ms (6 cycles at 60Hz)',
@@ -366,6 +398,21 @@ async function generateEnhancedPDF(results, projectData) {
             doc.text(`\u2022 ${assumption}`, 20, yPos);
             yPos += 6;
         });
+    }
+    
+    // === CALCULATION LOG ===
+    if (results.calculationLog && results.calculationLog.length > 0) {
+        addSectionHeader('Calculation Log');
+        
+        doc.setFontSize(8);
+        results.calculationLog.forEach((entry, index) => {
+            checkPageBreak(8);
+            const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+            doc.text(`[${timestamp}] ${entry.message}`, 20, yPos);
+            yPos += 5;
+        });
+        doc.setFontSize(10);
+        yPos += 6;
     }
     
     // === FOOTER ===
