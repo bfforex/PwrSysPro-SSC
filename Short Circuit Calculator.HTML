@@ -13,6 +13,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"></script>
     
+    <!-- PowerSys Pro Enhanced Modules -->
+    <script src="js/improved_validation.js"></script>
+    <script src="js/standard_specific_calcs.js"></script>
+    <script src="js/calculation_verification.js"></script>
+    <script src="js/arc_flash_calculation.js"></script>
+    <script src="js/ppe_selection.js"></script>
+    <script src="js/voltage_drop_calculations.js"></script>
+    <script src="js/bus_model.js"></script>
+    <script src="js/thevenin_equivalent.js"></script>
+    <script src="js/transformer_model.js"></script>
+    <script src="js/power_system.js"></script>
+    <script src="js/visualization.js"></script>
+    <script src="js/system_ui_interaction.js"></script>
+    
+    <!-- Enhanced Styling -->
+    <link rel="stylesheet" href="css/system_diagram.css">
+    
     <style>
         * {
             margin: 0;
@@ -922,6 +939,8 @@
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="switchTab('calculator')">Calculator</button>
             <button class="nav-tab" onclick="switchTab('equipment')">Equipment Database</button>
+            <button class="nav-tab" onclick="switchTab('busManagement')">Bus Management</button>
+            <button class="nav-tab" onclick="switchTab('voltageDrop')">Voltage Drop</button>
             <button class="nav-tab" onclick="switchTab('safety')">Safety Analysis</button>
             <button class="nav-tab" onclick="switchTab('reports')">Reports & Export</button>
             <button class="nav-tab" onclick="switchTab('help')">Help & Documentation</button>
@@ -1292,6 +1311,182 @@
                 </div>
             </div>
         </div>
+        
+        <div id="busManagementTab" class="tab-content">
+            <div style="padding: 35px; background: #fafbfc;">
+                <h2 class="section-title">Bus Management & System Configuration</h2>
+                
+                <!-- Add Bus Section -->
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-bottom: 25px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">🔌 Add New Bus</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="form-group">
+                            <label>Bus Name:</label>
+                            <input type="text" id="busName" placeholder="e.g., Main Bus">
+                        </div>
+                        <div class="form-group">
+                            <label>Voltage (V):</label>
+                            <input type="number" id="busVoltage" placeholder="e.g., 400" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Bus Type:</label>
+                            <select id="busType">
+                                <option value="load">Load Bus</option>
+                                <option value="source">Source Bus</option>
+                                <option value="junction">Junction Bus</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="handleAddBus()">Add Bus</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Connect Buses Section -->
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-bottom: 25px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">🔗 Connect Buses</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div class="form-group">
+                            <label>From Bus ID:</label>
+                            <input type="number" id="bus1Id" placeholder="e.g., 1">
+                        </div>
+                        <div class="form-group">
+                            <label>To Bus ID:</label>
+                            <input type="number" id="bus2Id" placeholder="e.g., 2">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="handleConnectBuses()">Connect</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bus List Display -->
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-bottom: 25px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="color: #1e3c72; margin: 0;">System Buses</h3>
+                        <button class="btn btn-secondary" onclick="updateBusDisplay()">🔄 Refresh</button>
+                    </div>
+                    <div id="busList" style="min-height: 100px;">
+                        <div style="text-align: center; color: #64748b; padding: 20px;">
+                            No buses configured. Add a bus to get started.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Diagram Display -->
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-bottom: 25px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">📊 System Diagram</h3>
+                    <div id="systemDiagramContainer" style="min-height: 400px; background: #f8fafc; border-radius: 8px; border: 1px solid #e1e8ed; padding: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 360px; color: #64748b;">
+                            System diagram will appear here once buses are added
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div style="background: white; padding: 30px; border-radius: 16px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">⚡ Quick Actions</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <button class="btn btn-primary" onclick="calculateAllBusFaults()">
+                            ⚡ Calculate All Fault Currents
+                        </button>
+                        <button class="btn btn-primary" onclick="exportSystemConfiguration()">
+                            💾 Export Configuration
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearAllBuses()">
+                            🗑️ Clear All Buses
+                        </button>
+                    </div>
+                    <div id="faultCurrentResults" style="margin-top: 20px;">
+                        <!-- Results will appear here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="voltageDropTab" class="tab-content">
+            <div style="padding: 35px; background: #fafbfc;">
+                <h2 class="section-title">Voltage Drop Analysis</h2>
+                
+                <!-- Input Parameters -->
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-bottom: 25px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">📐 Circuit Parameters</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="form-group">
+                            <label>System Voltage (V):</label>
+                            <input type="number" id="voltageDropVoltage" placeholder="e.g., 400" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Load Current (A):</label>
+                            <input type="number" id="voltageDropCurrent" placeholder="e.g., 100" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Cable Length (m):</label>
+                            <input type="number" id="voltageDropLength" placeholder="e.g., 50" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Conductor Size:</label>
+                            <select id="conductorSize">
+                                <option value="14">14 AWG</option>
+                                <option value="12">12 AWG</option>
+                                <option value="10" selected>10 AWG</option>
+                                <option value="8">8 AWG</option>
+                                <option value="6">6 AWG</option>
+                                <option value="4">4 AWG</option>
+                                <option value="2">2 AWG</option>
+                                <option value="1/0">1/0 AWG</option>
+                                <option value="2/0">2/0 AWG</option>
+                                <option value="3/0">3/0 AWG</option>
+                                <option value="4/0">4/0 AWG</option>
+                                <option value="250">250 kcmil</option>
+                                <option value="500">500 kcmil</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Conductor Material:</label>
+                            <select id="conductorMaterial">
+                                <option value="copper" selected>Copper</option>
+                                <option value="aluminum">Aluminum</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Phase Type:</label>
+                            <select id="phaseType">
+                                <option value="three-phase" selected>Three-Phase</option>
+                                <option value="single-phase">Single-Phase</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Power Factor:</label>
+                            <input type="number" id="powerFactorVD" placeholder="e.g., 0.85" step="0.01" value="0.85" min="0.1" max="1.0">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="handleVoltageDropCalculation()">Calculate</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Results Display -->
+                <div id="voltageDropResults">
+                    <!-- Results will be displayed here -->
+                </div>
+                
+                <!-- Conductor Database Reference -->
+                <div style="background: white; padding: 30px; border-radius: 16px; margin-top: 25px;">
+                    <h3 style="color: #1e3c72; margin-bottom: 20px;">📚 Conductor Data Reference</h3>
+                    <p style="color: #64748b; margin-bottom: 15px;">
+                        Standard conductor resistance and reactance values at 75°C are used for calculations.
+                        Values are based on NEC and IEEE standards.
+                    </p>
+                    <div style="background: #f0f4ff; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;">
+                        <strong>NEC Voltage Drop Limits:</strong><br>
+                        • Feeder circuits: 3% recommended, 5% maximum<br>
+                        • Branch circuits: 3% recommended, 5% maximum<br>
+                        • Combined feeder + branch: 5% maximum
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -1299,6 +1494,22 @@
         let calculationResults = null;
         let perUnitResults = null;
         let pointToPointResults = null;
+        
+        // Initialize global systems for enhanced features
+        let globalBusSystem = null;
+        let globalPowerSystem = null;
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BusSystem !== 'undefined') {
+                globalBusSystem = new BusSystem();
+                window.globalBusSystem = globalBusSystem;
+            }
+            if (typeof PowerSystem !== 'undefined') {
+                globalPowerSystem = new PowerSystem();
+                window.globalPowerSystem = globalPowerSystem;
+            }
+        });
         
         // ============================================================================
         // CALCULATION SAFETY MODULE - Zero-division and NaN protection
@@ -5732,6 +5943,141 @@
             } else {
                 console.error('✗ Some tests failed. Review the output above.');
                 return false;
+            }
+        }
+        
+        // ============================================================================
+        // ENHANCED FEATURES - Bus Management and System Analysis
+        // ============================================================================
+        
+        /**
+         * Calculate fault currents for all buses in the system
+         */
+        function calculateAllBusFaults() {
+            if (!window.globalBusSystem) {
+                showToast('Bus system not initialized', 'warning');
+                return;
+            }
+            
+            showLoadingIndicator('Calculating fault currents for all buses...');
+            
+            setTimeout(() => {
+                try {
+                    const results = window.globalBusSystem.calculateSystemFaultCurrents();
+                    displayFaultCurrentResults(results);
+                    hideLoadingIndicator();
+                    showToast('Fault current calculations completed', 'success');
+                } catch (error) {
+                    hideLoadingIndicator();
+                    showToast('Calculation error: ' + error.message, 'error');
+                }
+            }, 500);
+        }
+        
+        /**
+         * Display fault current results in table format
+         */
+        function displayFaultCurrentResults(results) {
+            const container = document.getElementById('faultCurrentResults');
+            if (!container) return;
+            
+            let html = '<div style="background: white; padding: 20px; border-radius: 12px; margin-top: 20px; border: 2px solid #3b82f6;">';
+            html += '<h3 style="color: #1e3a8a; margin-bottom: 15px;">⚡ Fault Current Results</h3>';
+            html += '<table style="width: 100%; border-collapse: collapse;"><thead><tr style="background: #1e3a8a; color: white;">';
+            html += '<th style="padding: 12px; text-align: left;">Bus ID</th>';
+            html += '<th style="padding: 12px; text-align: left;">Bus Name</th>';
+            html += '<th style="padding: 12px; text-align: center;">Voltage (V)</th>';
+            html += '<th style="padding: 12px; text-align: center;">Fault Current (A)</th>';
+            html += '</tr></thead><tbody>';
+            
+            results.forEach((result, index) => {
+                const bgColor = index % 2 === 0 ? '#f8fafc' : 'white';
+                html += `<tr style="background: ${bgColor};">
+                    <td style="padding: 10px; border: 1px solid #e1e8ed;">${result.busId}</td>
+                    <td style="padding: 10px; border: 1px solid #e1e8ed;">${result.busName}</td>
+                    <td style="padding: 10px; border: 1px solid #e1e8ed; text-align: center;">${result.voltage.toFixed(0)}</td>
+                    <td style="padding: 10px; border: 1px solid #e1e8ed; text-align: center; font-weight: 600; color: #3b82f6;">
+                        ${result.faultCurrent.toFixed(2)}
+                    </td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        
+        /**
+         * Export system configuration as JSON
+         */
+        function exportSystemConfiguration() {
+            if (!window.globalBusSystem) {
+                showToast('Bus system not initialized', 'warning');
+                return;
+            }
+            
+            const config = window.globalBusSystem.exportConfiguration();
+            const json = JSON.stringify(config, null, 2);
+            
+            // Create download link
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bus_system_config_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('Configuration exported successfully', 'success');
+        }
+        
+        /**
+         * Clear all buses from the system
+         */
+        function clearAllBuses() {
+            if (!window.globalBusSystem) return;
+            
+            if (confirm('Are you sure you want to clear all buses? This action cannot be undone.')) {
+                if (typeof BusSystem !== 'undefined') {
+                    window.globalBusSystem = new BusSystem();
+                    updateBusDisplay();
+                    updateSystemDiagram();
+                    showToast('All buses cleared', 'success');
+                }
+            }
+        }
+        
+        /**
+         * Show loading indicator
+         */
+        function showLoadingIndicator(message = 'Loading...') {
+            const container = document.getElementById('faultCurrentResults') || document.body;
+            const indicator = document.createElement('div');
+            indicator.id = 'tempLoadingIndicator';
+            indicator.innerHTML = `
+                <div style="text-align: center; padding: 20px; background: white; border-radius: 12px; margin-top: 20px;">
+                    <div style="border: 4px solid #f3f4f6; border-top: 4px solid #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                    <p style="margin-top: 10px; color: #667eea;">${message}</p>
+                </div>
+            `;
+            container.appendChild(indicator);
+        }
+        
+        /**
+         * Hide loading indicator
+         */
+        function hideLoadingIndicator() {
+            const indicator = document.getElementById('tempLoadingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+        
+        /**
+         * Update system diagram visualization
+         */
+        function updateSystemDiagram() {
+            if (window.globalBusSystem && typeof drawSystemDiagram !== 'undefined') {
+                drawSystemDiagram(window.globalBusSystem, 'systemDiagramContainer');
             }
         }
         

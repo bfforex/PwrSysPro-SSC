@@ -1,0 +1,438 @@
+/**
+ * system_diagram.css
+ * Styling for interactive system diagrams and enhanced visualizations
+ */
+
+/* System Diagram Container */
+.system-diagram-container {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 20px 0;
+}
+
+.system-diagram-container h3 {
+    color: #1e3a8a;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+}
+
+/* Bus Display */
+.bus-element {
+    position: relative;
+    display: inline-block;
+    padding: 15px 25px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-radius: 8px;
+    margin: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.bus-element:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.bus-element.source {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.bus-element.load {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.bus-element.junction {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+/* Bus Label */
+.bus-label {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.bus-voltage {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* Connection Lines */
+.connection-line {
+    stroke: #64748b;
+    stroke-width: 2;
+    stroke-dasharray: 5, 5;
+    animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+    to {
+        stroke-dashoffset: -10;
+    }
+}
+
+/* Transformer Symbol */
+.transformer-symbol {
+    display: inline-block;
+    position: relative;
+    width: 60px;
+    height: 60px;
+    margin: 10px;
+}
+
+.transformer-symbol::before,
+.transformer-symbol::after {
+    content: '';
+    position: absolute;
+    border: 2px solid #1e3a8a;
+    border-radius: 50%;
+}
+
+.transformer-symbol::before {
+    width: 30px;
+    height: 30px;
+    left: 0;
+    top: 15px;
+}
+
+.transformer-symbol::after {
+    width: 30px;
+    height: 30px;
+    right: 0;
+    top: 15px;
+}
+
+/* Calculation Steps Display */
+.calculation-step {
+    border: 1px solid #e1e8ed;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.calculation-step:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.step-header {
+    background: #f1f5f9;
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    transition: background 0.3s ease;
+}
+
+.step-header:hover {
+    background: #e2e8f0;
+}
+
+.step-content {
+    padding: 15px;
+    background: white;
+    display: none;
+}
+
+.step-content.active {
+    display: block;
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.step-header.active .toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Formula Display */
+.formula-display {
+    font-family: 'Courier New', Courier, monospace;
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+    border-left: 4px solid #3b82f6;
+}
+
+/* Result Display */
+.result-display {
+    background: #d1fae5;
+    border-left: 4px solid #10b981;
+    padding: 12px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.result-display strong {
+    color: #065f46;
+}
+
+/* Comparison Table */
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.comparison-table thead {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    color: white;
+}
+
+.comparison-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.comparison-table td {
+    padding: 10px 12px;
+    border: 1px solid #e1e8ed;
+}
+
+.comparison-table tbody tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+.comparison-table tbody tr:hover {
+    background: #e2e8f0;
+}
+
+/* Difference Cell */
+.diff-cell {
+    font-weight: 600;
+    text-align: center;
+}
+
+.diff-cell.good {
+    color: #10b981;
+}
+
+.diff-cell.warning {
+    color: #f59e0b;
+}
+
+.diff-cell.critical {
+    color: #dc2626;
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 400px;
+    margin: 20px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Bus Management Panel */
+.bus-management-panel {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.bus-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.bus-item {
+    border: 1px solid #e1e8ed;
+    padding: 12px;
+    border-radius: 8px;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.bus-item:hover {
+    background: #f8fafc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.bus-item-header {
+    font-weight: 600;
+    color: #1e3a8a;
+    margin-bottom: 5px;
+}
+
+.bus-item-details {
+    color: #64748b;
+    font-size: 14px;
+}
+
+/* Loading Indicator */
+.loading-indicator {
+    text-align: center;
+    padding: 20px;
+}
+
+.spinner {
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Toast Notification */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+}
+
+/* Validation Feedback */
+.validation-feedback {
+    margin-top: 5px;
+    font-size: 12px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.validation-feedback.valid {
+    color: #10b981;
+}
+
+.validation-feedback.warning {
+    color: #f59e0b;
+}
+
+.validation-feedback.error {
+    color: #ef4444;
+}
+
+/* PPE Category Display */
+.ppe-category-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    color: white;
+    margin: 5px;
+}
+
+.ppe-category-0 {
+    background: #10b981;
+}
+
+.ppe-category-1 {
+    background: #3b82f6;
+}
+
+.ppe-category-2 {
+    background: #f59e0b;
+}
+
+.ppe-category-3 {
+    background: #f97316;
+}
+
+.ppe-category-4 {
+    background: #dc2626;
+}
+
+/* Interactive Element Highlight */
+.interactive-element {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.interactive-element:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .system-diagram-container {
+        padding: 15px;
+    }
+    
+    .bus-element {
+        padding: 10px 15px;
+        margin: 5px;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
+    
+    .comparison-table {
+        font-size: 12px;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+        padding: 8px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .system-diagram-container {
+        page-break-inside: avoid;
+    }
+    
+    .calculation-step {
+        page-break-inside: avoid;
+    }
+    
+    .bus-element:hover {
+        transform: none;
+    }
+    
+    .interactive-element:hover {
+        transform: none;
+        filter: none;
+    }
+}
