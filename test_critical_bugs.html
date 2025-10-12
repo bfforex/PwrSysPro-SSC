@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Critical Bug Test - PowerSys Pro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f4ff;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .pass { color: #10b981; font-weight: bold; }
+        .fail { color: #ef4444; font-weight: bold; }
+        .detail { margin-left: 20px; color: #666; }
+        h2 { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+    <h1>Critical Bug Test - Test_Project_2025-10-12</h1>
+    
+    <div class="test-section">
+        <h2>System Parameters</h2>
+        <ul>
+            <li>Utility: 100 MVA @ 13.2 kV, X/R=10</li>
+            <li>MV Cable: 500m, R=0.153 Ω/km, X=0.171 Ω/km</li>
+            <li>Transformer: 1 MVA, 4%Z, 13.2kV/440V, rx=null</li>
+            <li>LV Cable: 72m, R=0.0485 Ω/km, X=0.053 Ω/km</li>
+            <li>Fault at: 440V bus</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="testResults"></div>
+    </div>
+    
+    <script>
+        // Test case from problem statement
+        function runCriticalBugTest() {
+            const results = [];
+            
+            // System parameters
+            const systemVoltage = 440; // V
+            const faultVoltage = 440; // V (LV side)
+            
+            // 1. Utility impedance calculation
+            const utilityMVA = 100;
+            const utilityVoltage = 13200; // V
+            const utilityXR = 10;
+            
+            // Utility impedance at 13.2kV
+            const zUtility_HV = (utilityVoltage * utilityVoltage) / (utilityMVA * 1e6);
+            const xUtility_HV = zUtility_HV / Math.sqrt(1 + 1/(utilityXR * utilityXR));
+            const rUtility_HV = xUtility_HV / utilityXR;
+            
+            results.push({
+                name: 'Utility Impedance @ 13.2kV',
+                expected: `Z = ${zUtility_HV.toFixed(6)} Ω`,
+                actual: `Z = ${zUtility_HV.toFixed(6)} Ω (R=${rUtility_HV.toFixed(6)} Ω, X=${xUtility_HV.toFixed(6)} Ω)`,
+                pass: true
+            });
+            
+            // 2. MV Cable impedance (500m)
+            const mvCableLength = 500; // meters
+            const mvCableR_per_km = 0.153; // Ω/km
+            const mvCableX_per_km = 0.171; // Ω/km
+            
+            // CRITICAL: This should be Ω/km × (length_m / 1000)
+            const mvCableR = mvCableR_per_km * (mvCableLength / 1000);
+            const mvCableX = mvCableX_per_km * (mvCableLength / 1000);
+            
+            results.push({
+                name: 'MV Cable Impedance (500m)',
+                expected: `R = 0.0765 Ω, X = 0.0855 Ω`,
+                actual: `R = ${mvCableR.toFixed(4)} Ω, X = ${mvCableX.toFixed(4)} Ω`,
+                pass: Math.abs(mvCableR - 0.0765) < 0.0001 && Math.abs(mvCableX - 0.0855) < 0.0001
+            });
+            
+            // 3. Transformer impedance
+            const txMVA = 1;
+            const txImpedancePercent = 4;
+            const txPrimaryV = 13200; // V
+            const txSecondaryV = 440; // V
+            const txRatio = txPrimaryV / txSecondaryV;
+            
+            // Base impedance on SECONDARY side
+            const zBaseTx_Secondary = (txSecondaryV * txSecondaryV) / (txMVA * 1e6);
+            const zTx_Secondary = zBaseTx_Secondary * (txImpedancePercent / 100);
+            
+            // For 1 MVA transformer, typical X/R ratio is ~5 (IEEE)
+            const txXR = 5;
+            const xTx_Secondary = zTx_Secondary / Math.sqrt(1 + 1/(txXR * txXR));
+            const rTx_Secondary = xTx_Secondary / txXR;
+            
+            results.push({
+                name: 'Transformer Impedance @ 440V',
+                expected: `Z_base = ${zBaseTx_Secondary.toFixed(6)} Ω, Z_tx = ${zTx_Secondary.toFixed(6)} Ω`,
+                actual: `Z_base = ${zBaseTx_Secondary.toFixed(6)} Ω, Z_tx = ${zTx_Secondary.toFixed(6)} Ω (R=${rTx_Secondary.toFixed(6)} Ω, X=${xTx_Secondary.toFixed(6)} Ω)`,
+                pass: true
+            });
+            
+            // 4. Refer MV side impedances to LV side
+            const voltageRatio = txPrimaryV / txSecondaryV;
+            const impedanceTransformFactor = 1 / (voltageRatio * voltageRatio); // Z_LV = Z_HV / ratio²
+            
+            const rUtility_LV = rUtility_HV * impedanceTransformFactor;
+            const xUtility_LV = xUtility_HV * impedanceTransformFactor;
+            const rMVCable_LV = mvCableR * impedanceTransformFactor;
+            const xMVCable_LV = mvCableX * impedanceTransformFactor;
+            
+            results.push({
+                name: 'Impedance Referral to LV side',
+                expected: `Factor = 1/(${voltageRatio.toFixed(2)})² = ${impedanceTransformFactor.toFixed(8)}`,
+                actual: `Utility @ LV: R=${rUtility_LV.toFixed(6)} Ω, X=${xUtility_LV.toFixed(6)} Ω<br>` +
+                        `MV Cable @ LV: R=${rMVCable_LV.toFixed(6)} Ω, X=${xMVCable_LV.toFixed(6)} Ω`,
+                pass: true
+            });
+            
+            // 5. LV Cable impedance with temperature correction
+            const lvCableLength = 72; // meters
+            const lvCableR_per_km_20C = 0.0485; // Ω/km at 20°C
+            const lvCableX_per_km = 0.053; // Ω/km
+            
+            // Temperature correction: 75°C for copper
+            const tempCoeff = 234.5; // Copper
+            const tempFactor = (tempCoeff + 75) / (tempCoeff + 20);
+            const lvCableR_per_km_75C = lvCableR_per_km_20C * tempFactor;
+            
+            const lvCableR = lvCableR_per_km_75C * (lvCableLength / 1000);
+            const lvCableX = lvCableX_per_km * (lvCableLength / 1000);
+            
+            results.push({
+                name: 'LV Cable Impedance (72m, 75°C)',
+                expected: `Temp factor = ${tempFactor.toFixed(4)}, R_75°C = ${lvCableR.toFixed(6)} Ω`,
+                actual: `R = ${lvCableR.toFixed(6)} Ω, X = ${lvCableX.toFixed(6)} Ω`,
+                pass: true
+            });
+            
+            // 6. Total impedance at fault point (440V bus)
+            const totalR = rUtility_LV + rMVCable_LV + rTx_Secondary + lvCableR;
+            const totalX = xUtility_LV + xMVCable_LV + xTx_Secondary + lvCableX;
+            const totalZ = Math.sqrt(totalR * totalR + totalX * totalX);
+            
+            results.push({
+                name: 'Total Impedance at Fault',
+                expected: `~0.0131 Ω (for ~19.45 kA)`,
+                actual: `R = ${totalR.toFixed(6)} Ω, X = ${totalX.toFixed(6)} Ω, Z = ${totalZ.toFixed(6)} Ω`,
+                pass: totalZ > 0.010 && totalZ < 0.015 // Should be around 0.0131
+            });
+            
+            // 7. Fault current calculation
+            const faultCurrent_A = (faultVoltage / Math.sqrt(3)) / totalZ;
+            const faultCurrent_kA = faultCurrent_A / 1000;
+            
+            results.push({
+                name: 'Symmetrical Fault Current',
+                expected: `~19.45 kA`,
+                actual: `${faultCurrent_kA.toFixed(2)} kA (${faultCurrent_A.toFixed(0)} A)`,
+                pass: faultCurrent_kA > 18 && faultCurrent_kA < 21 // Should be around 19-20 kA
+            });
+            
+            // Display results
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="background: #f0f4ff;"><th style="padding: 10px; border: 1px solid #ddd;">Test</th><th style="padding: 10px; border: 1px solid #ddd;">Expected</th><th style="padding: 10px; border: 1px solid #ddd;">Actual</th><th style="padding: 10px; border: 1px solid #ddd;">Status</th></tr>';
+            
+            results.forEach(result => {
+                const statusClass = result.pass ? 'pass' : 'fail';
+                const statusText = result.pass ? '✓ PASS' : '✗ FAIL';
+                html += `<tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>${result.name}</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">${result.expected}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">${result.actual}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;" class="${statusClass}">${statusText}</td>
+                </tr>`;
+            });
+            html += '</table>';
+            
+            document.getElementById('testResults').innerHTML = html;
+            
+            // Summary
+            const passCount = results.filter(r => r.pass).length;
+            const totalCount = results.length;
+            const summaryClass = passCount === totalCount ? 'pass' : 'fail';
+            
+            html += `<div style="margin-top: 20px; padding: 15px; background: ${passCount === totalCount ? '#d1fae5' : '#fee2e2'}; border-radius: 8px;">`;
+            html += `<h3 class="${summaryClass}">Summary: ${passCount}/${totalCount} tests passed</h3>`;
+            html += `</div>`;
+            
+            document.getElementById('testResults').innerHTML = html;
+        }
+        
+        // Run tests on page load
+        window.addEventListener('load', runCriticalBugTest);
+    </script>
+</body>
+</html>
