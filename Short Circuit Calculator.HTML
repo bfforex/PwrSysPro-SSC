@@ -23,6 +23,9 @@
     <script src="js/bus_model.js"></script>
     <script src="js/thevenin_equivalent.js"></script>
     <script src="js/transformer_model.js"></script>
+    <script src="js/topology_manager.js"></script>
+    <script src="js/motor_contribution.js"></script>
+    <script src="js/calculation_orchestrator.js"></script>
     <script src="js/power_system.js"></script>
     <script src="js/visualization.js"></script>
     <script src="js/system_ui_interaction.js"></script>
@@ -1096,10 +1099,13 @@
                 </div>
                 
                 <div class="button-group">
-                    <button class="btn btn-success" onclick="calculate()">Calculate</button>
-                    <button class="btn btn-secondary" onclick="saveProject()">Save Project</button>
-                    <button class="btn btn-secondary" onclick="loadProject()">Load Project</button>
-                    <button class="btn btn-secondary" onclick="exportResults()">Export Results</button>
+                    <button class="btn btn-success" id="runAllAnalysis" onclick="handleRunAllAnalysis()">🔬 Run All Analysis</button>
+                    <button class="btn btn-primary" id="calculateShortCircuit" onclick="calculate()">⚡ Calculate Short Circuit</button>
+                    <button class="btn btn-warning" id="calculateArcFlash" style="display:none;">⚠️ Arc Flash</button>
+                    <button class="btn btn-info" id="calculateVoltageDrop" style="display:none;">📉 Voltage Drop</button>
+                    <button class="btn btn-secondary" onclick="saveProject()">💾 Save Project</button>
+                    <button class="btn btn-secondary" onclick="loadProject()">📂 Load Project</button>
+                    <button class="btn btn-secondary" onclick="exportResults()">📄 Export Results</button>
                 </div>
             </div>
             
