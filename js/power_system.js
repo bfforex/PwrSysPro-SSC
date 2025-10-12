@@ -176,7 +176,7 @@ class PowerSystem {
             cables: this.cables.length,
             sources: this.sources.length,
             loads: this.loads.length,
-            voltag eLevels: this.getVoltageLevels()
+            voltageLevels: this.getVoltageLevels()
         };
     }
     

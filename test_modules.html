@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerSys Pro - Module Test</title>
+    
+    <!-- Load all modules -->
+    <script src="js/improved_validation.js"></script>
+    <script src="js/standard_specific_calcs.js"></script>
+    <script src="js/calculation_verification.js"></script>
+    <script src="js/arc_flash_calculation.js"></script>
+    <script src="js/ppe_selection.js"></script>
+    <script src="js/voltage_drop_calculations.js"></script>
+    <script src="js/bus_model.js"></script>
+    <script src="js/thevenin_equivalent.js"></script>
+    <script src="js/transformer_model.js"></script>
+    <script src="js/power_system.js"></script>
+    <script src="js/visualization.js"></script>
+    <script src="js/system_ui_interaction.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f4ff;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        h2 { color: #1e3a8a; }
+    </style>
+</head>
+<body>
+    <h1>PowerSys Pro - Module Functionality Test</h1>
+    
+    <div class="test-section">
+        <h2>Module Load Test</h2>
+        <div id="moduleLoadTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Validation Module Test</h2>
+        <div id="validationTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Standards Calculation Test</h2>
+        <div id="standardsTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Arc Flash Calculation Test</h2>
+        <div id="arcFlashTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Voltage Drop Calculation Test</h2>
+        <div id="voltageDropTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Bus System Test</h2>
+        <div id="busSystemTest"></div>
+    </div>
+    
+    <script>
+        // Test Module Loading
+        function testModuleLoading() {
+            const results = [];
+            
+            // Check if key functions/classes exist
+            const tests = [
+                { name: 'Validation', check: typeof validatePhysicalConstraint !== 'undefined' },
+                { name: 'IEC Calculations', check: typeof calculateIECShortCircuit !== 'undefined' },
+                { name: 'IEEE Calculations', check: typeof calculateIEEEShortCircuit !== 'undefined' },
+                { name: 'Verification', check: typeof performComprehensiveVerification !== 'undefined' },
+                { name: 'Arc Flash', check: typeof calculateArcFlashIEEE1584_2018 !== 'undefined' },
+                { name: 'PPE Selection', check: typeof getPPECategory !== 'undefined' },
+                { name: 'Voltage Drop', check: typeof calculateThreePhaseVoltageDrop !== 'undefined' },
+                { name: 'Bus Model', check: typeof Bus !== 'undefined' },
+                { name: 'BusSystem', check: typeof BusSystem !== 'undefined' },
+                { name: 'Thevenin', check: typeof calculateTheveninEquivalent !== 'undefined' },
+                { name: 'Transformer', check: typeof Transformer !== 'undefined' },
+                { name: 'PowerSystem', check: typeof PowerSystem !== 'undefined' }
+            ];
+            
+            let html = '<ul>';
+            tests.forEach(test => {
+                html += `<li class="${test.check ? 'success' : 'error'}">
+                    ${test.check ? '✓' : '✗'} ${test.name}: ${test.check ? 'Loaded' : 'Failed'}
+                </li>`;
+            });
+            html += '</ul>';
+            
+            document.getElementById('moduleLoadTest').innerHTML = html;
+        }
+        
+        // Test Validation
+        function testValidation() {
+            let html = '';
+            
+            try {
+                const result = validatePhysicalConstraint(400, 'voltage');
+                html += `<p class="success">✓ Validation test passed: ${JSON.stringify(result)}</p>`;
+            } catch (error) {
+                html += `<p class="error">✗ Validation test failed: ${error.message}</p>`;
+            }
+            
+            document.getElementById('validationTest').innerHTML = html;
+        }
+        
+        // Test Standards Calculations
+        function testStandardsCalculations() {
+            let html = '';
+            
+            try {
+                const iecResult = calculateIECShortCircuit({
+                    voltage: 400,
+                    impedanceR: 0.1,
+                    impedanceX: 1.0,
+                    faultType: 'max'
+                });
+                html += `<p class="success">✓ IEC calculation: ${iecResult.symmetricalCurrent.toFixed(2)} A</p>`;
+                
+                const ieeeResult = calculateIEEEShortCircuit({
+                    voltage: 400,
+                    impedanceR: 0.1,
+                    impedanceX: 1.0,
+                    faultLocation: 'remote'
+                });
+                html += `<p class="success">✓ IEEE calculation: ${ieeeResult.symmetricalCurrent.toFixed(2)} A</p>`;
+            } catch (error) {
+                html += `<p class="error">✗ Standards test failed: ${error.message}</p>`;
+            }
+            
+            document.getElementById('standardsTest').innerHTML = html;
+        }
+        
+        // Test Arc Flash
+        function testArcFlash() {
+            let html = '';
+            
+            try {
+                const result = calculateArcFlashIEEE1584_2018({
+                    voltage: 480,
+                    boltedFaultCurrent: 25,
+                    workingDistance: 450,
+                    arcDuration: 0.1,
+                    equipmentGap: 32,
+                    enclosureType: 'VCB'
+                });
+                
+                if (result.applicable) {
+                    html += `<p class="success">✓ Arc flash calculation successful</p>`;
+                    html += `<p>Incident Energy: ${result.incidentEnergyCalCm2.toFixed(2)} cal/cm²</p>`;
+                    html += `<p>Arc Flash Boundary: ${(result.arcFlashBoundary / 304.8).toFixed(2)} feet</p>`;
+                    
+                    const ppeCategory = getPPECategory(result.incidentEnergyCalCm2);
+                    html += `<p>PPE Category: ${ppeCategory}</p>`;
+                } else {
+                    html += `<p class="error">✗ ${result.error}</p>`;
+                }
+            } catch (error) {
+                html += `<p class="error">✗ Arc flash test failed: ${error.message}</p>`;
+            }
+            
+            document.getElementById('arcFlashTest').innerHTML = html;
+        }
+        
+        // Test Voltage Drop
+        function testVoltageDrop() {
+            let html = '';
+            
+            try {
+                const result = calculateThreePhaseVoltageDrop({
+                    voltage: 400,
+                    current: 100,
+                    length: 50,
+                    conductorSize: '10',
+                    conductorMaterial: 'copper',
+                    powerFactor: 0.85
+                });
+                
+                html += `<p class="success">✓ Voltage drop calculation successful</p>`;
+                html += `<p>Voltage Drop: ${result.voltageDrop.toFixed(2)} V (${result.voltageDropPercent.toFixed(2)}%)</p>`;
+                
+                const compliance = checkNECCompliance(result.voltageDropPercent, 'feeder');
+                html += `<p>NEC Compliance: ${compliance.level}</p>`;
+            } catch (error) {
+                html += `<p class="error">✗ Voltage drop test failed: ${error.message}</p>`;
+            }
+            
+            document.getElementById('voltageDropTest').innerHTML = html;
+        }
+        
+        // Test Bus System
+        function testBusSystem() {
+            let html = '';
+            
+            try {
+                const busSystem = new BusSystem();
+                const bus1 = busSystem.addBus('Main Bus', 13800, 'source');
+                const bus2 = busSystem.addBus('Load Bus', 480, 'load');
+                
+                busSystem.connectBuses(bus1.id, bus2.id, { r: 0.1, x: 1.0 });
+                
+                html += `<p class="success">✓ Bus system created successfully</p>`;
+                html += `<p>Total Buses: ${busSystem.getAllBuses().length}</p>`;
+                
+                const config = busSystem.exportConfiguration();
+                html += `<p>Connections: ${config.connections.length}</p>`;
+            } catch (error) {
+                html += `<p class="error">✗ Bus system test failed: ${error.message}</p>`;
+            }
+            
+            document.getElementById('busSystemTest').innerHTML = html;
+        }
+        
+        // Run all tests
+        window.addEventListener('DOMContentLoaded', function() {
+            testModuleLoading();
+            testValidation();
+            testStandardsCalculations();
+            testArcFlash();
+            testVoltageDrop();
+            testBusSystem();
+        });
+    </script>
+</body>
+</html>
