@@ -449,8 +449,24 @@ class CalculationOrchestrator {
             
             // X/R ratio and asymmetric component
             const xr = th.xr || 10;
+            
+            // First-cycle RMS asymmetrical current multiplier
+            // Per ANSI/IEEE C37.010 and IEEE 141
+            // Formula: Multiplier = √(1 + 2e^(-4π/(X/R)))
+            // This accounts for DC offset component during first cycle
             const asymFactor = Math.sqrt(1 + 2 * Math.pow(Math.E, -4 * Math.PI / xr));
+            
+            // Peak current (instantaneous maximum)
+            // Peak = √2 × Asymmetrical RMS
             const iPeak = i3phase * Math.sqrt(2) * asymFactor;
+            
+            // Calculate fault MVA
+            const faultMVA = (Math.sqrt(3) * voltage * i3phase) / 1e6;
+            
+            // Calculate time constant τ = L/(ωR) = X/(2πfR)
+            const frequency = this.projectData.frequency || 60; // Hz
+            const omega = 2 * Math.PI * frequency;
+            const tau_s = th.x / (omega * th.r); // seconds
             
             results.push({
                 busId: bus.id,
@@ -479,6 +495,17 @@ class CalculationOrchestrator {
                     symmetrical: i3phase / 1000,
                     asymmetrical: (i3phase * asymFactor) / 1000,
                     peak: iPeak / 1000
+                },
+                // Enhanced results per problem statement requirements
+                results: {
+                    isym_kA: i3phase / 1000,
+                    iasym_kA: (i3phase * asymFactor) / 1000,
+                    z_total_ohm: th.z,
+                    x_over_r: xr,
+                    mva_sc: faultMVA,
+                    tau_s: tau_s,
+                    multiplier: asymFactor,
+                    computed_at: new Date().toISOString()
                 }
             });
         });

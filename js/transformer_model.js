@@ -15,7 +15,8 @@ class Transformer {
         this.primaryVoltage = config.primaryVoltage || 13800;
         this.secondaryVoltage = config.secondaryVoltage || 480;
         this.impedancePercent = config.impedancePercent || 5.75;
-        this.xrRatio = config.xrRatio || 10;
+        // Don't set default X/R here - let calculateImpedanceOhms determine it based on size
+        this.xrRatio = config.xrRatio !== undefined ? config.xrRatio : null;
         this.connectionType = config.connectionType || 'Dyn11'; // Delta-Wye
         this.tapPosition = config.tapPosition || 0; // ± percent
     }
@@ -30,15 +31,30 @@ class Transformer {
         // Transformer impedance in ohms
         const zOhms = zBase * (this.impedancePercent / 100);
         
+        // Get typical X/R ratio if not specified
+        // Per IEEE 141 typical values based on transformer size:
+        // < 1 MVA: X/R = 20 (R/X = 0.05)
+        // 1-2.5 MVA: X/R = 14.3 (R/X = 0.07)
+        // 2.5-5 MVA: X/R = 10 (R/X = 0.10)
+        // 5-10 MVA: X/R = 6.67 (R/X = 0.15)
+        // > 10 MVA: X/R = 5 (R/X = 0.20)
+        let xrRatio = this.xrRatio;
+        if (!xrRatio || xrRatio === 0) {
+            xrRatio = getTypicalTransformerXR(this.powerMVA);
+        }
+        
         // Calculate R and X from Z and X/R ratio
-        const r = zOhms / Math.sqrt(1 + this.xrRatio * this.xrRatio);
-        const x = r * this.xrRatio;
+        // From Z = √(R² + X²) and X = R × (X/R)
+        // R = Z / √(1 + (X/R)²)
+        const r = zOhms / Math.sqrt(1 + xrRatio * xrRatio);
+        const x = r * xrRatio;
         
         return {
             r: r,
             x: x,
             magnitude: zOhms,
-            referredTo: 'secondary'
+            referredTo: 'secondary',
+            xrRatio: xrRatio
         };
     }
     
@@ -129,8 +145,23 @@ class Transformer {
 
 /**
  * Calculate impedance referred between voltage levels
+ * Formula: Z_new = Z_old × (V_new / V_old)²
+ * 
+ * Examples:
+ * - HV to LV: Z_LV = Z_HV × (V_LV / V_HV)² = Z_HV / ratio²
+ * - LV to HV: Z_HV = Z_LV × (V_HV / V_LV)² = Z_LV × ratio²
+ * 
+ * @param {Object} impedance - Impedance object with r, x properties (in Ω)
+ * @param {number} fromVoltage - Original voltage level (in V, not kV)
+ * @param {number} toVoltage - Target voltage level (in V, not kV)
+ * @returns {Object} Referred impedance with r, x, magnitude, ratio
  */
 function referImpedanceBetweenLevels(impedance, fromVoltage, toVoltage) {
+    // Ensure voltages are positive and non-zero
+    if (fromVoltage <= 0 || toVoltage <= 0) {
+        throw new Error(`Invalid voltage levels: from=${fromVoltage}V, to=${toVoltage}V`);
+    }
+    
     const ratio = toVoltage / fromVoltage;
     const factor = ratio * ratio;
     
@@ -140,8 +171,22 @@ function referImpedanceBetweenLevels(impedance, fromVoltage, toVoltage) {
         magnitude: Math.sqrt((impedance.r * factor) ** 2 + (impedance.x * factor) ** 2),
         fromVoltage: fromVoltage,
         toVoltage: toVoltage,
-        ratio: ratio
+        ratio: ratio,
+        factor: factor
     };
+}
+
+/**
+ * Alias for referImpedanceBetweenLevels - more explicit naming for transformer referral
+ * This function specifically handles impedance transformation across a transformer
+ * 
+ * @param {Object} impedance - Impedance object with r, x properties (in Ω)
+ * @param {number} vFrom - Original voltage level (in V)
+ * @param {number} vTo - Target voltage level (in V)
+ * @returns {Object} Referred impedance
+ */
+function referImpedanceAcrossTransformer(impedance, vFrom, vTo) {
+    return referImpedanceBetweenLevels(impedance, vFrom, vTo);
 }
 
 /**
@@ -260,6 +305,28 @@ class TransformerBank {
 }
 
 /**
+ * Get typical transformer X/R ratio based on power rating
+ * Per IEEE 141 and industry standards
+ * 
+ * @param {number} powerMVA - Transformer power rating in MVA
+ * @returns {number} Typical X/R ratio
+ */
+function getTypicalTransformerXR(powerMVA) {
+    // IEEE 141 typical values
+    if (powerMVA < 1) {
+        return 20; // R/X = 0.05
+    } else if (powerMVA < 2.5) {
+        return 14.3; // R/X = 0.07
+    } else if (powerMVA < 5) {
+        return 10; // R/X = 0.10
+    } else if (powerMVA < 10) {
+        return 6.67; // R/X = 0.15
+    } else {
+        return 5; // R/X = 0.20
+    }
+}
+
+/**
  * Tap changer calculation
  */
 function calculateTapChangerEffect(nominalVoltage, tapStep, tapPosition) {
@@ -283,6 +350,8 @@ if (typeof module !== 'undefined' && module.exports) {
         Transformer,
         TransformerBank,
         referImpedanceBetweenLevels,
+        referImpedanceAcrossTransformer,
+        getTypicalTransformerXR,
         calculateInrushCurrent,
         getConnectionTypeImpact,
         calculateShortCircuitWithstand,

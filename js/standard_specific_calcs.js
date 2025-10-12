@@ -166,10 +166,44 @@ function calculateIECPeakCurrent(symmetricalCurrent, xrRatio) {
 }
 
 /**
+ * Calculate first-cycle RMS asymmetrical current multiplier
+ * Per ANSI/IEEE C37.010 and IEEE 141
+ * 
+ * This function calculates the multiplier to convert symmetrical RMS current
+ * to first-cycle (momentary) RMS asymmetrical current.
+ * 
+ * Formula: Multiplier = √(1 + 2e^(-4π/(X/R)))
+ * 
+ * Note: This is an approximation. For more precise values, use table lookup
+ * from IEEE standards or the simplified range-based factors.
+ * 
+ * References:
+ * - IEEE Std 141-1993 (Red Book), Section 4.3
+ * - ANSI C37.010-1999, Section 5.4.1
+ * - IEEE Std 242-2001 (Buff Book), Chapter 2
+ * 
+ * @param {number} xrRatio - X/R ratio at fault location
+ * @returns {number} First-cycle RMS asymmetrical multiplier (typically 1.0 to 1.6)
+ */
+function calculateFirstCycleAsymmetricalMultiplier(xrRatio) {
+    // IEEE C37.010 approximation formula for first-cycle asymmetrical RMS
+    // This accounts for the DC offset component during the first cycle
+    // Factor = √(1 + 2e^(-4π/(X/R)))
+    // The -4π term represents approximately 2 cycles at 60 Hz
+    const multiplier = Math.sqrt(1 + 2 * Math.pow(Math.E, -4 * Math.PI / xrRatio));
+    
+    // Validate result is within reasonable bounds
+    // For X/R = 0, multiplier ≈ 1.0 (purely resistive, no asymmetry)
+    // For X/R → ∞, multiplier ≈ 1.732 (√3, maximum theoretical)
+    return Math.max(1.0, Math.min(1.732, multiplier));
+}
+
+/**
  * Calculate peak fault current using IEEE method
  */
 function calculateIEEEPeakCurrent(symmetricalCurrent, xrRatio) {
     // IEEE method: Ip = 2 × √2 × Irms × multiplying factor
+    // For momentary duty rating (first cycle), use table-based factor
     const asymmetryFactor = getIEEEAsymmetryFactor(xrRatio);
     const peakCurrent = 2 * Math.sqrt(2) * symmetricalCurrent * asymmetryFactor;
     
@@ -354,6 +388,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getIECVoltageFactor,
         calculateIECImpedanceCorrection,
         getIEEEAsymmetryFactor,
+        calculateFirstCycleAsymmetricalMultiplier,
         calculateIECPeakCurrent,
         calculateIEEEPeakCurrent,
         calculateIECShortCircuit,
