@@ -157,10 +157,13 @@
                     enclosureType: 'VCB'
                 });
                 
+                // Conversion constant
+                const MM_TO_FEET = 304.8;
+                
                 if (result.applicable) {
                     html += `<p class="success">✓ Arc flash calculation successful</p>`;
                     html += `<p>Incident Energy: ${result.incidentEnergyCalCm2.toFixed(2)} cal/cm²</p>`;
-                    html += `<p>Arc Flash Boundary: ${(result.arcFlashBoundary / 304.8).toFixed(2)} feet</p>`;
+                    html += `<p>Arc Flash Boundary: ${(result.arcFlashBoundary / MM_TO_FEET).toFixed(2)} feet</p>`;
                     
                     const ppeCategory = getPPECategory(result.incidentEnergyCalCm2);
                     html += `<p>PPE Category: ${ppeCategory}</p>`;

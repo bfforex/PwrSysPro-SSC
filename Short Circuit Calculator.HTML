@@ -1495,6 +1495,10 @@
         let perUnitResults = null;
         let pointToPointResults = null;
         
+        // Unit conversion constants
+        const MM_TO_FEET = 304.8; // millimeters to feet conversion
+        const MM_TO_INCHES = 25.4; // millimeters to inches conversion
+        
         // Initialize global systems for enhanced features
         let globalBusSystem = null;
         let globalPowerSystem = null;
@@ -2087,7 +2091,7 @@
             
             // Validate arc flash boundary
             if (results.arcFlashBoundary > 0) {
-                const afbFeet = (results.arcFlashBoundary / 304.8).toFixed(2);
+                const afbFeet = (results.arcFlashBoundary / MM_TO_FEET).toFixed(2);
                 if (results.arcFlashBoundary > 3000) {
                     arcFlashWarnings.push({
                         level: 'danger',
@@ -4234,7 +4238,7 @@
                         </div>
                         <div class="boundary-item">
                             <strong>Arc Flash Boundary</strong><br>
-                            <span style="font-size: 1.5em; color: #dc2626;">${(arcFlashBoundary / 304.8).toFixed(2)} feet</span><br>
+                            <span style="font-size: 1.5em; color: #dc2626;">${(arcFlashBoundary / MM_TO_FEET).toFixed(2)} feet</span><br>
                             <small>Distance to 1.2 cal/cm²</small>
                         </div>
                         <div class="boundary-item">
@@ -4284,19 +4288,19 @@
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr style="background: #f8fafc;">
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Limited Approach (Shock Protection)</strong></td>
-                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.limited / 304.8).toFixed(2)} feet (${boundaries.limited} mm)</td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.limited / MM_TO_FEET).toFixed(2)} feet (${boundaries.limited} mm)</td>
                             </tr>
                             <tr>
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Restricted Approach (Shock Protection)</strong></td>
-                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.restricted / 304.8).toFixed(2)} feet (${boundaries.restricted} mm)</td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.restricted / MM_TO_FEET).toFixed(2)} feet (${boundaries.restricted} mm)</td>
                             </tr>
                             <tr style="background: #f8fafc;">
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Prohibited Approach (Shock Protection)</strong></td>
-                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.prohibited / 304.8).toFixed(2)} feet (${boundaries.prohibited} mm)</td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;">${(boundaries.prohibited / MM_TO_FEET).toFixed(2)} feet (${boundaries.prohibited} mm)</td>
                             </tr>
                             <tr style="background: #fff3cd;">
                                 <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>Arc Flash Boundary</strong></td>
-                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>${(arcFlashBoundary / 304.8).toFixed(2)} feet (${arcFlashBoundary.toFixed(0)} mm)</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e1e8ed;"><strong>${(arcFlashBoundary / MM_TO_FEET).toFixed(2)} feet (${arcFlashBoundary.toFixed(0)} mm)</strong></td>
                             </tr>
                         </table>
                         <div style="margin-top: 10px; font-size: 0.9em; color: #64748b;">
@@ -4308,7 +4312,7 @@
                         <strong>⚠️ CRITICAL SAFETY REQUIREMENTS (NFPA 70E-2024):</strong><br>
                         • All personnel must wear appropriate PPE for Category ${ppeCategory}<br>
                         • <strong>Hearing protection mandatory</strong> for all arc flash work (NFPA 70E-2024 requirement)<br>
-                        • Establish arc flash boundary at ${(arcFlashBoundary / 304.8).toFixed(2)} feet<br>
+                        • Establish arc flash boundary at ${(arcFlashBoundary / MM_TO_FEET).toFixed(2)} feet<br>
                         • Only qualified persons permitted within shock protection boundaries<br>
                         • Consider arc-resistant switchgear for incident energy > 12 cal/cm²<br>
                         • Implement proper lockout/tagout procedures per NFPA 70E Article 120<br>
