@@ -5946,6 +5946,11 @@
          * Initialize application on page load
          */
         window.addEventListener('load', () => {
+            // Initialize UI interaction handlers
+            if (typeof initializeUIInteractions === 'function') {
+                initializeUIInteractions();
+            }
+            
             initializeAutoSave();
             initializeKeyboardShortcuts();
             loadEquipmentDatabase();
