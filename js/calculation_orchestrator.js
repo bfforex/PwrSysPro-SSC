@@ -346,7 +346,23 @@ class CalculationOrchestrator {
         // Use topology manager if available, otherwise use bus model
         if (typeof TopologyManager !== 'undefined') {
             const topologyManager = new TopologyManager();
-            return topologyManager.buildFromProject(projectData);
+            const topology = topologyManager.buildFromProject(projectData);
+            
+            // Validate topology connectivity
+            const validation = topologyManager.validateTopology();
+            if (!validation.valid) {
+                const errorMsg = 'Topology validation failed: ' + validation.errors.join('; ');
+                this.logStep('ERROR: ' + errorMsg);
+                throw new Error(errorMsg);
+            }
+            
+            // Log warnings
+            validation.warnings.forEach(warning => {
+                this.logStep('WARNING: ' + warning);
+                this.addAssumption('Topology', warning);
+            });
+            
+            return topology;
         }
         
         // Fallback to bus model

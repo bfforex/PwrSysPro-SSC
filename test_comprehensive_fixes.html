@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Comprehensive Fixes</title>
+    <script src="js/improved_validation.js"></script>
+    <script src="js/standard_specific_calcs.js"></script>
+    <script src="js/calculation_verification.js"></script>
+    <script src="js/arc_flash_calculation.js"></script>
+    <script src="js/ppe_selection.js"></script>
+    <script src="js/voltage_drop_calculations.js"></script>
+    <script src="js/bus_model.js"></script>
+    <script src="js/thevenin_equivalent.js"></script>
+    <script src="js/transformer_model.js"></script>
+    <script src="js/topology_manager.js"></script>
+    <script src="js/motor_contribution.js"></script>
+    <script src="js/results_store.js"></script>
+    <script src="js/calculation_orchestrator.js"></script>
+    <script src="js/report_enhanced.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .pass { background: #d4edda; border-color: #c3e6cb; }
+        .fail { background: #f8d7da; border-color: #f5c6cb; }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 0; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        .info { color: #0066cc; }
+    </style>
+</head>
+<body>
+    <h1>Comprehensive Fixes Test Suite</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = [];
+        
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name, status: 'pass', message: 'Test passed' });
+            } catch (error) {
+                results.push({ name, status: 'fail', message: error.message, stack: error.stack });
+            }
+        }
+        
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+        
+        // Test 1: ResultsStore exists and functions
+        test('ResultsStore - Singleton and basic operations', () => {
+            assert(typeof ResultsStore !== 'undefined', 'ResultsStore class should be defined');
+            assert(typeof resultsStore !== 'undefined', 'resultsStore instance should be defined');
+            
+            // Test save and retrieve
+            const testResults = {
+                timestamp: new Date().toISOString(),
+                test: true,
+                value: 42
+            };
+            
+            resultsStore.saveResults(testResults);
+            const retrieved = resultsStore.getResults();
+            
+            assert(retrieved !== null, 'Should retrieve saved results');
+            assert(retrieved.test === true, 'Retrieved results should match saved');
+            assert(retrieved.value === 42, 'Retrieved value should match saved');
+            
+            resultsStore.clearResults();
+            assert(!resultsStore.hasResults(), 'Should clear results');
+        });
+        
+        // Test 2: CalculationOrchestrator validation
+        test('CalculationOrchestrator - Utility ISC validation', () => {
+            const orchestrator = new CalculationOrchestrator();
+            
+            // Test with implausibly high ISC
+            const projectData = {
+                voltage: 440,
+                components: [
+                    {
+                        type: 'utility_isc',
+                        isc: 4373.87, // Wrong - likely means 4.374 kA but entered as A
+                        voltage: 13.2,
+                        xr: 10
+                    }
+                ]
+            };
+            
+            const validation = orchestrator.validateInputs(projectData);
+            
+            assert(!validation.valid, 'Should fail validation with implausibly high ISC');
+            assert(validation.errors.some(e => e.includes('implausibly high')), 
+                   'Should have error about implausibly high ISC');
+        });
+        
+        // Test 3: Cable reactance validation
+        test('CalculationOrchestrator - Cable reactance validation', () => {
+            const orchestrator = new CalculationOrchestrator();
+            
+            const projectData = {
+                voltage: 440,
+                components: [
+                    {
+                        type: 'cable',
+                        voltage: 440,
+                        length: 100,
+                        resistance: 0.1,
+                        reactance: 0.5 // Too high - should be ~0.05
+                    }
+                ]
+            };
+            
+            const validation = orchestrator.validateInputs(projectData);
+            
+            // Should pass validation but have warnings
+            assert(validation.warnings && validation.warnings.length > 0, 
+                   'Should have warnings for high reactance');
+            assert(validation.warnings.some(w => w.includes('unusually high')), 
+                   'Should warn about high reactance');
+        });
+        
+        // Test 4: Motor contribution as parallel sources
+        test('CalculationOrchestrator - Motor contribution integration', () => {
+            const orchestrator = new CalculationOrchestrator();
+            
+            // Create mock data
+            orchestrator.state.motorContribution = {
+                motors: [
+                    {
+                        busConnection: 'Bus1',
+                        contribution: {
+                            firstCycle: 5000, // 5 kA
+                            interrupting: 3750,
+                            sustained: 2000
+                        }
+                    }
+                ],
+                totals: {
+                    firstCycle: 5000,
+                    interrupting: 3750,
+                    sustained: 2000
+                }
+            };
+            
+            orchestrator.state.shortCircuit = [
+                {
+                    busId: 'Bus1',
+                    busName: 'Bus1',
+                    faultCurrentsKA: {
+                        threePhase: 15.0
+                    }
+                }
+            ];
+            
+            orchestrator.integrateMotorContribution();
+            
+            const busResult = orchestrator.state.shortCircuit[0];
+            
+            assert(busResult.motorContribution !== null, 
+                   'Bus should have motor contribution');
+            assert(busResult.faultCurrentsKA.threePhaseWithMotors === 20.0, 
+                   'Should add motor contribution as parallel source (15 + 5 = 20 kA)');
+            assert(busResult.motorContributionPercent.firstCycle > 0, 
+                   'Should calculate motor contribution percentage');
+        });
+        
+        // Test 5: Arc Flash Not Evaluated state
+        test('CalculationOrchestrator - Arc Flash Not Evaluated', () => {
+            const orchestrator = new CalculationOrchestrator();
+            orchestrator.projectData = { arcFlashParams: {} };
+            
+            const scResults = [
+                {
+                    busId: 'Bus1',
+                    busName: 'Test Bus',
+                    voltage: 100, // Below 208V - out of range
+                    faultCurrentsKA: {
+                        threePhase: 10.0
+                    }
+                }
+            ];
+            
+            const afResults = orchestrator.calculateArcFlash(scResults);
+            
+            assert(afResults.length > 0, 'Should return arc flash results');
+            assert(afResults[0].evaluated === false, 'Should not be evaluated');
+            assert(afResults[0].status === 'Not Evaluated', 'Should have Not Evaluated status');
+            assert(afResults[0].missingFields && afResults[0].missingFields.length > 0, 
+                   'Should list missing fields');
+        });
+        
+        // Test 6: Transformer base impedance calculation
+        test('Transformer - Base impedance calculation', () => {
+            assert(typeof Transformer !== 'undefined', 'Transformer class should be defined');
+            
+            const transformer = new Transformer({
+                powerMVA: 1.0,
+                primaryVoltage: 13200,
+                secondaryVoltage: 440,
+                impedancePercent: 4.0,
+                xrRatio: 10
+            });
+            
+            const z = transformer.calculateImpedanceOhms();
+            
+            // Zbase = V²/S = (440)² / (1 × 10^6) = 0.1936 Ω
+            // Z = Zbase × %Z/100 = 0.1936 × 0.04 = 0.007744 Ω
+            const expectedZbase = (440 * 440) / (1.0 * 1e6);
+            const expectedZ = expectedZbase * (4.0 / 100);
+            
+            assert(Math.abs(z.magnitude - expectedZ) < 0.0001, 
+                   `Transformer impedance should be ${expectedZ.toFixed(6)} Ω, got ${z.magnitude.toFixed(6)} Ω`);
+            
+            // Check R and X from X/R ratio
+            const expectedR = expectedZ / Math.sqrt(1 + 10*10);
+            const expectedX = expectedR * 10;
+            
+            assert(Math.abs(z.r - expectedR) < 0.0001, 'Resistance should match calculation');
+            assert(Math.abs(z.x - expectedX) < 0.0001, 'Reactance should match calculation');
+        });
+        
+        // Display results
+        const resultsDiv = document.getElementById('results');
+        let passCount = 0;
+        let failCount = 0;
+        
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = `test ${result.status}`;
+            
+            const title = document.createElement('h2');
+            title.textContent = `${result.status.toUpperCase()}: ${result.name}`;
+            div.appendChild(title);
+            
+            const message = document.createElement('p');
+            message.textContent = result.message;
+            div.appendChild(message);
+            
+            if (result.status === 'fail' && result.stack) {
+                const stack = document.createElement('pre');
+                stack.textContent = result.stack;
+                div.appendChild(stack);
+            }
+            
+            resultsDiv.appendChild(div);
+            
+            if (result.status === 'pass') passCount++;
+            else failCount++;
+        });
+        
+        // Summary
+        const summary = document.createElement('div');
+        summary.className = 'test info';
+        summary.innerHTML = `<h2>Summary</h2><p><strong>Total Tests:</strong> ${results.length}<br>
+                             <strong>Passed:</strong> ${passCount}<br>
+                             <strong>Failed:</strong> ${failCount}</p>`;
+        resultsDiv.insertBefore(summary, resultsDiv.firstChild);
+        
+        console.log('Test Results:', { total: results.length, passed: passCount, failed: failCount });
+    </script>
+</body>
+</html>
