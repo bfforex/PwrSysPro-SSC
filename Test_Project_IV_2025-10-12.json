@@ -1,0 +1,60 @@
+{
+  "projectName": "Test Project IV - 2025-10-12",
+  "description": "Test case for short circuit calculation validation with 1 MVA transformer, 13.2/0.44 kV, 100 MVA utility source",
+  "date": "2025-10-12",
+  "voltage": 440,
+  "frequency": 60,
+  "standard": "ieee",
+  "components": [
+    {
+      "type": "utility",
+      "name": "Utility Source",
+      "shortCircuitMVA": 100,
+      "voltage": 13200,
+      "xr": 10,
+      "notes": "100 MVA short circuit MVA at 13.2 kV"
+    },
+    {
+      "type": "cable",
+      "name": "MV Cable",
+      "length": 500,
+      "resistance": 0.153,
+      "reactance": 0.171,
+      "voltage": 13200,
+      "operatingTemp": 75,
+      "cableType": "single",
+      "notes": "500m MV cable at 13.2 kV, R=0.153 Ω/km, X=0.171 Ω/km at 20°C"
+    },
+    {
+      "type": "transformer",
+      "name": "Main Transformer",
+      "power": 1,
+      "impedance": 4,
+      "primaryV": 13.2,
+      "secondaryV": 0.44,
+      "rx": null,
+      "notes": "1 MVA, 4%Z, 13.2kV/440V transformer, R/X will use IEEE 141 default"
+    },
+    {
+      "type": "cable",
+      "name": "LV Cable",
+      "length": 72,
+      "resistance": 0.0485,
+      "reactance": 0.053,
+      "voltage": 440,
+      "operatingTemp": 75,
+      "cableType": "multi",
+      "notes": "72m LV cable at 440V, R=0.0485 Ω/km, X=0.053 Ω/km at 20°C"
+    }
+  ],
+  "expectedResults": {
+    "isym_kA": 17.9,
+    "iasym_kA": 22.9,
+    "z_total_ohm": 0.01421,
+    "x_over_r": 2.74,
+    "mva_sc": 13.6,
+    "notes": "Hand-calculated expected values from problem statement with ±5% tolerance (±10% for X/R)"
+  },
+  "results": null,
+  "notes": "Test case from problem statement to validate impedance referral, transformer defaults, and result persistence"
+}

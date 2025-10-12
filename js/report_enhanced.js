@@ -144,12 +144,36 @@ async function generateEnhancedPDF(results, projectData) {
             
             yPos = doc.lastAutoTable.finalY + 6;
             
-            doc.text(`Impedance: R = ${scResult.impedance.r.toFixed(6)} \u03A9, ` +
-                    `X = ${scResult.impedance.x.toFixed(6)} \u03A9, ` +
-                    `Z = ${scResult.impedance.z.toFixed(6)} \u03A9`, 25, yPos);
-            yPos += 6;
-            doc.text(`X/R Ratio: ${scResult.impedance.xr.toFixed(2)}`, 25, yPos);
-            yPos += 10;
+            // Enhanced results section
+            if (scResult.results) {
+                doc.setFont('helvetica', 'bold');
+                doc.text('Enhanced Results:', 25, yPos);
+                yPos += 6;
+                doc.setFont('helvetica', 'normal');
+                
+                doc.text(`Symmetrical Current (Isym): ${scResult.results.isym_kA.toFixed(3)} kA`, 30, yPos);
+                yPos += 5;
+                doc.text(`Asymmetrical Current (Iasym): ${scResult.results.iasym_kA.toFixed(3)} kA`, 30, yPos);
+                yPos += 5;
+                doc.text(`Total Impedance: ${scResult.results.z_total_ohm.toFixed(6)} \u03A9`, 30, yPos);
+                yPos += 5;
+                doc.text(`X/R Ratio: ${scResult.results.x_over_r.toFixed(2)}`, 30, yPos);
+                yPos += 5;
+                doc.text(`Fault MVA: ${scResult.results.mva_sc.toFixed(2)} MVA`, 30, yPos);
+                yPos += 5;
+                doc.text(`Time Constant (\u03C4): ${(scResult.results.tau_s * 1000).toFixed(2)} ms`, 30, yPos);
+                yPos += 5;
+                doc.text(`Asymmetrical Multiplier: ${scResult.results.multiplier.toFixed(3)}`, 30, yPos);
+                yPos += 8;
+            } else {
+                // Legacy format
+                doc.text(`Impedance: R = ${scResult.impedance.r.toFixed(6)} \u03A9, ` +
+                        `X = ${scResult.impedance.x.toFixed(6)} \u03A9, ` +
+                        `Z = ${scResult.impedance.z.toFixed(6)} \u03A9`, 25, yPos);
+                yPos += 6;
+                doc.text(`X/R Ratio: ${scResult.impedance.xr.toFixed(2)}`, 25, yPos);
+                yPos += 10;
+            }
         });
     }
     

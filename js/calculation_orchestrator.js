@@ -268,11 +268,31 @@ class CalculationOrchestrator {
         // Validate component units
         projectData.components?.forEach((comp, index) => {
             if (comp.type === 'cable') {
+                // Validate length
                 if (!comp.length || comp.length <= 0) {
-                    errors.push(`Cable ${index + 1}: Invalid length`);
+                    errors.push(`Cable ${index + 1}: Invalid length (must be positive)`);
                 }
+                if (comp.length < 0) {
+                    errors.push(`Cable ${index + 1}: Negative length ${comp.length}m is impossible`);
+                }
+                
+                // Validate impedance data
                 if (!comp.resistance || !comp.reactance) {
                     errors.push(`Cable ${index + 1}: Missing impedance data (Ω/km)`);
+                }
+                if (comp.resistance < 0 || comp.reactance < 0) {
+                    errors.push(`Cable ${index + 1}: Negative impedance values are impossible (R=${comp.resistance}, X=${comp.reactance})`);
+                }
+                
+                // Validate voltage specification
+                if (!comp.voltage) {
+                    warnings.push(`Cable ${index + 1}: Voltage level not specified. Will use system voltage. Please specify voltage (in V, not kV) for accurate referral.`);
+                    this.addAssumption('Cable Validation', `Cable ${index + 1} voltage not specified - using system voltage for impedance referral`);
+                }
+                
+                // Check for kV vs V confusion
+                if (comp.voltage && comp.voltage < 100) {
+                    warnings.push(`Cable ${index + 1}: Voltage ${comp.voltage}V seems very low. Did you mean ${comp.voltage * 1000}V (i.e., ${comp.voltage} kV)? Please use V, not kV.`);
                 }
                 
                 // Validate cable reactance - typical LV cable reactance is 0.03-0.1 Ω/km
@@ -292,8 +312,48 @@ class CalculationOrchestrator {
                 if (!comp.power || comp.power <= 0) {
                     errors.push(`Transformer ${index + 1}: Invalid power rating (MVA)`);
                 }
+                if (comp.power < 0) {
+                    errors.push(`Transformer ${index + 1}: Negative power rating ${comp.power} MVA is impossible`);
+                }
+                
                 if (!comp.impedance || comp.impedance <= 0) {
                     errors.push(`Transformer ${index + 1}: Invalid impedance (%Z)`);
+                }
+                if (comp.impedance < 0) {
+                    errors.push(`Transformer ${index + 1}: Negative impedance ${comp.impedance}% is impossible`);
+                }
+                
+                // Typical transformer impedances: 3-7% for distribution transformers
+                if (comp.impedance > 15) {
+                    warnings.push(`Transformer ${index + 1}: Impedance ${comp.impedance}% is unusually high (typical: 3-7%). Please verify.`);
+                }
+                if (comp.impedance < 2) {
+                    warnings.push(`Transformer ${index + 1}: Impedance ${comp.impedance}% is unusually low (typical: 3-7%). Please verify.`);
+                }
+                
+                // Check for missing R/X ratio
+                if (!comp.rx && comp.rx !== 0) {
+                    this.addAssumption('Transformer', `Transformer ${index + 1} R/X ratio not specified - using IEEE 141 typical value based on ${comp.power} MVA rating`);
+                }
+                
+                // Validate voltage specifications
+                if (!comp.primaryV || comp.primaryV <= 0) {
+                    warnings.push(`Transformer ${index + 1}: Primary voltage not specified or invalid`);
+                }
+                if (!comp.secondaryV || comp.secondaryV <= 0) {
+                    warnings.push(`Transformer ${index + 1}: Secondary voltage not specified or invalid`);
+                }
+                
+                // Check for kV vs V confusion
+                if (comp.primaryV && comp.primaryV > 1000) {
+                    warnings.push(`Transformer ${index + 1}: Primary voltage ${comp.primaryV} seems very high. Did you mean ${comp.primaryV / 1000} kV? Please use kV for transformer voltages.`);
+                }
+                if (comp.secondaryV && comp.secondaryV > 1000) {
+                    // This is actually correct for many transformers (e.g., 13.2kV/480V)
+                    // But warn if unusually high
+                    if (comp.secondaryV > 10000) {
+                        warnings.push(`Transformer ${index + 1}: Secondary voltage ${comp.secondaryV} seems very high. Please verify units (should be in kV).`);
+                    }
                 }
             }
             
