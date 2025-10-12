@@ -248,10 +248,11 @@ class CalculationOrchestrator {
      */
     validateInputs(projectData) {
         const errors = [];
+        const warnings = [];
         
         if (!projectData) {
             errors.push('No project data provided');
-            return { valid: false, errors };
+            return { valid: false, errors, warnings };
         }
         
         // Validate voltage
@@ -273,6 +274,18 @@ class CalculationOrchestrator {
                 if (!comp.resistance || !comp.reactance) {
                     errors.push(`Cable ${index + 1}: Missing impedance data (Ω/km)`);
                 }
+                
+                // Validate cable reactance - typical LV cable reactance is 0.03-0.1 Ω/km
+                if (comp.reactance && comp.voltage && comp.voltage < 1000) {
+                    // LV cable
+                    if (comp.reactance > 0.2) {
+                        warnings.push(`Cable ${index + 1}: Reactance ${comp.reactance} Ω/km is unusually high for LV cable (typical: 0.03-0.1 Ω/km). Please verify.`);
+                        this.addAssumption('Cable Validation', `Cable ${index + 1} has high reactance (${comp.reactance} Ω/km). Typical LV cable: 0.03-0.1 Ω/km. Consider correcting if data error.`);
+                    }
+                    if (comp.reactance < 0.01) {
+                        warnings.push(`Cable ${index + 1}: Reactance ${comp.reactance} Ω/km is unusually low. Please verify.`);
+                    }
+                }
             }
             
             if (comp.type === 'transformer') {
@@ -284,16 +297,45 @@ class CalculationOrchestrator {
                 }
             }
             
-            if (comp.type === 'utility') {
-                if (!comp.faultCurrent && !comp.shortCircuitMVA) {
+            if (comp.type === 'utility' || comp.type === 'utility_isc') {
+                // Validate ISC if provided
+                if (comp.isc !== undefined) {
+                    if (comp.isc <= 0) {
+                        errors.push(`Utility ${index + 1}: Invalid fault current (must be positive)`);
+                    }
+                    
+                    // Check for plausible ISC range based on voltage
+                    if (comp.voltage && comp.isc) {
+                        const voltageKV = comp.voltage;
+                        // For MV systems (1-36 kV), typical ISC is 1-100 kA
+                        // ISC > 1000 kA is implausible for most utility sources
+                        if (comp.isc > 1000) {
+                            errors.push(`Utility ${index + 1}: ISC ${comp.isc} kA is implausibly high. Did you mean ${(comp.isc/1000).toFixed(3)} kA? Please verify units (should be kA, not A).`);
+                        }
+                        
+                        // Calculate implied MVA and check plausibility
+                        const impliedMVA = Math.sqrt(3) * voltageKV * comp.isc;
+                        if (impliedMVA > 10000) {
+                            warnings.push(`Utility ${index + 1}: Implied fault MVA is ${impliedMVA.toFixed(0)} MVA (ISC=${comp.isc} kA @ ${voltageKV} kV). This is very high. Typical: 100-1000 MVA for distribution.`);
+                        }
+                    }
+                }
+                
+                if (comp.type === 'utility' && !comp.faultCurrent && !comp.shortCircuitMVA && !comp.isc) {
                     errors.push(`Utility ${index + 1}: Must specify fault current (kA) or SC MVA`);
                 }
             }
         });
         
+        // Log warnings as assumptions
+        warnings.forEach(warning => {
+            this.logStep('WARNING: ' + warning);
+        });
+        
         return {
             valid: errors.length === 0,
-            errors: errors
+            errors: errors,
+            warnings: warnings
         };
     }
     
@@ -711,6 +753,12 @@ class CalculationOrchestrator {
                     Math.max(...this.state.arcFlash.filter(r => r.applicable).map(r => r.incidentEnergy || 0)) : 0
             }
         };
+        
+        // Save to ResultsStore
+        if (typeof window !== 'undefined' && window.resultsStore) {
+            window.resultsStore.saveResults(results);
+            this.logStep('Results saved to ResultsStore');
+        }
         
         return results;
     }

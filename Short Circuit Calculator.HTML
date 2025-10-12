@@ -25,6 +25,7 @@
     <script src="js/transformer_model.js"></script>
     <script src="js/topology_manager.js"></script>
     <script src="js/motor_contribution.js"></script>
+    <script src="js/results_store.js"></script>
     <script src="js/calculation_orchestrator.js"></script>
     <script src="js/report_enhanced.js"></script>
     <script src="js/power_system.js"></script>
@@ -1242,7 +1243,7 @@
                 <div style="background: white; padding: 30px; border-radius: 16px;">
                     <h3 style="color: #1e3c72; margin-bottom: 20px;">Export Options</h3>
                     <div class="button-group">
-                        <button class="btn btn-primary" onclick="exportEnhancedPDF()">📄 Export Enhanced PDF Report</button>
+                        <button class="btn btn-primary" id="exportEnhancedPdf">📄 Export Enhanced PDF Report</button>
                         <button class="btn btn-success" onclick="exportExcel()">📊 Export to Excel</button>
                         <button class="btn btn-info" onclick="exportResults()">📝 Export Text Report</button>
                         <button class="btn btn-secondary" onclick="printReport()">🖨️ Print Report</button>
