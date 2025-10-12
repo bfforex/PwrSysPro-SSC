@@ -346,7 +346,7 @@ class CalculationOrchestrator {
      * Calculate Thevenin equivalents for all buses
      */
     calculateTheveninEquivalents(topology) {
-        const buses = topology.buses || topology.busSystem.getAllBuses();
+        const buses = topology.busSystem.getAllBuses();
         const theveninEquivalents = [];
         
         buses.forEach(bus => {
@@ -371,7 +371,7 @@ class CalculationOrchestrator {
      * Calculate short circuit for all fault types
      */
     calculateShortCircuit(topology, thevenin) {
-        const buses = topology.buses || topology.busSystem.getAllBuses();
+        const buses = topology.busSystem.getAllBuses();
         const results = [];
         
         buses.forEach((bus, index) => {
@@ -536,7 +536,7 @@ class CalculationOrchestrator {
      * Calculate voltage drop
      */
     calculateVoltageDrop(topology) {
-        const buses = topology.buses || topology.busSystem.getAllBuses();
+        const buses = topology.busSystem.getAllBuses();
         const results = [];
         
         buses.forEach((bus, index) => {
@@ -690,7 +690,7 @@ class CalculationOrchestrator {
             calculationLog: this.state.calculationLog,
             assumptions: this.state.assumptions,
             topology: {
-                buses: this.state.topology.buses.map(b => ({
+                buses: this.state.topology.busSystem.getAllBuses().map(b => ({
                     id: b.id,
                     name: b.name,
                     voltage: b.voltage,
@@ -721,4 +721,9 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         CalculationOrchestrator
     };
+}
+
+// Export to window for browser usage
+if (typeof window !== 'undefined') {
+    window.CalculationOrchestrator = CalculationOrchestrator;
 }

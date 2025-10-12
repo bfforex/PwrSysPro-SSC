@@ -267,3 +267,11 @@ if (typeof module !== 'undefined' && module.exports) {
         buildBusModelFromComponents
     };
 }
+
+// Export to window for browser usage
+if (typeof window !== 'undefined') {
+    window.Bus = Bus;
+    window.BusSystem = BusSystem;
+    window.createBusFromComponent = createBusFromComponent;
+    window.buildBusModelFromComponents = buildBusModelFromComponents;
+}

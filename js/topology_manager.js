@@ -415,3 +415,8 @@ if (typeof module !== 'undefined' && module.exports) {
         TopologyManager
     };
 }
+
+// Export to window for browser usage
+if (typeof window !== 'undefined') {
+    window.TopologyManager = TopologyManager;
+}
