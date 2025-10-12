@@ -980,6 +980,22 @@
                         </select>
                         <div class="info-text">Choose your preferred calculation approach</div>
                     </div>
+                    
+                    <div class="form-group">
+                        <label>Fault Type:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Three-phase faults typically produce highest currents. Single phase faults depend on grounding and zero-sequence impedances.</span>
+                            </span>
+                        </label>
+                        <select id="faultType">
+                            <option value="3phase">Three-Phase (3Ø)</option>
+                            <option value="line-to-ground">Line-to-Ground (L-G)</option>
+                            <option value="line-to-line">Line-to-Line (L-L)</option>
+                            <option value="double-line-to-ground">Double Line-to-Ground (2L-G)</option>
+                        </select>
+                        <div class="info-text">Select the type of fault to analyze</div>
+                    </div>
                 
                 <div class="form-group">
                     <label>Project Name:</label>
@@ -3837,10 +3853,42 @@
                 content: `ΣR = ${totalImpedance.r.toFixed(4)} Ω<br>ΣX = ${totalImpedance.x.toFixed(4)} Ω<br>Ztotal = √(R² + X²) = √(${totalImpedance.r.toFixed(4)}² + ${totalImpedance.x.toFixed(4)}²) = ${totalZ.toFixed(4)} Ω<br>X/R Ratio = ${totalXR.toFixed(2)}`
             });
             
-            // Calculate symmetrical short circuit current
+            // Get fault type
+            const faultTypeEl = document.getElementById('faultType');
+            const faultType = faultTypeEl ? faultTypeEl.value : '3phase';
+            
+            // Calculate symmetrical short circuit current (three-phase base)
             const vPhase = safeDivide(systemVoltage * cFactor, safeSqrt(3), 0);
-            const iscSymm = safeDivide(vPhase, totalZ, 0);
-            const iscSymmKA = safeDivide(iscSymm, 1000, 0);
+            let iscSymm = safeDivide(vPhase, totalZ, 0);
+            let iscSymmKA = safeDivide(iscSymm, 1000, 0);
+            
+            // Apply fault type multipliers
+            // NOTE: Proper analysis requires sequence impedances (Z0, Z1, Z2)
+            // These are simplified multipliers for typical solidly-grounded systems
+            let faultTypeMultiplier = 1.0;
+            let faultTypeNote = '';
+            
+            if (faultType === 'line-to-ground') {
+                // L-G: Simplified - typically 75-85% of 3-phase for solidly grounded systems
+                faultTypeMultiplier = 0.8;
+                faultTypeNote = '<br>⚠️ L-G fault: Using simplified multiplier (0.8×3Ø). For accurate results, specify Z0 (zero-sequence impedance).';
+                iscSymm = iscSymm * faultTypeMultiplier;
+                iscSymmKA = iscSymmKA * faultTypeMultiplier;
+            } else if (faultType === 'line-to-line') {
+                // L-L: Approximately 87% of 3-phase (= √3/2 × 3-phase)
+                faultTypeMultiplier = 0.866;
+                faultTypeNote = '<br>⚠️ L-L fault: I_LL = (√3/2) × I_3Ø = 0.866 × I_3Ø';
+                iscSymm = iscSymm * faultTypeMultiplier;
+                iscSymmKA = iscSymmKA * faultTypeMultiplier;
+            } else if (faultType === 'double-line-to-ground') {
+                // 2L-G: Typically between L-L and 3-phase, use 95% as approximation
+                faultTypeMultiplier = 0.95;
+                faultTypeNote = '<br>⚠️ 2L-G fault: Using simplified multiplier (0.95×3Ø). For accurate results, specify Z0 and Z2.';
+                iscSymm = iscSymm * faultTypeMultiplier;
+                iscSymmKA = iscSymmKA * faultTypeMultiplier;
+            } else {
+                faultTypeNote = '<br>Three-phase fault (maximum fault current)';
+            }
             
             // Validate symmetrical current result
             const symmValidation = validateCalculationResult(iscSymmKA, 'Symmetrical Current (kA)', 0.001, 1000);
@@ -3869,8 +3917,8 @@
                 multiplier = kappa; // For result storage
                 
                 steps.push({
-                    title: 'Short Circuit Current Calculation (IEC 60909)',
-                    content: `Symmetrical (RMS) Current I"k:<br>I"k = (c × Vn)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>I"k = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Peak Current ip (per IEC 60909-0):${kappaNote}<br>ip = κ × √2 × I"k = ${kappa.toFixed(3)} × 1.414 × ${iscSymmKA.toFixed(2)}<br>ip = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
+                    title: `Short Circuit Current Calculation (IEC 60909) - ${faultType.toUpperCase()}`,
+                    content: `Symmetrical (RMS) Current I"k:<br>I"k = (c × Vn)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>I"k = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong>${faultTypeNote}<br><br>Peak Current ip (per IEC 60909-0):${kappaNote}<br>ip = κ × √2 × I"k = ${kappa.toFixed(3)} × 1.414 × ${iscSymmKA.toFixed(2)}<br>ip = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
                 });
             } else {
                 // IEEE: Asymmetrical = Symmetrical × multiplier based on X/R
@@ -3880,8 +3928,8 @@
                 kappa = multiplier; // For result storage
                 
                 steps.push({
-                    title: 'Short Circuit Current Calculation (IEEE 141/C37)',
-                    content: `Symmetrical RMS Current:<br>Isym = (c × V)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>Isym = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Asymmetrical (First Cycle) Current (per IEEE):<br>Multiplier = √(1 + 2e^(-π/(X/R))) = √(1 + 2e^(-π/${totalXR.toFixed(2)}))<br>Multiplier = ${multiplier.toFixed(3)}<br>Iasym = Isym × ${multiplier.toFixed(3)} = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
+                    title: `Short Circuit Current Calculation (IEEE 141/C37) - ${faultType.toUpperCase()}`,
+                    content: `Symmetrical RMS Current:<br>Isym = (c × V)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>Isym = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong>${faultTypeNote}<br><br>Asymmetrical (First Cycle) Current (per IEEE):<br>Multiplier = √(1 + 2e^(-π/(X/R))) = √(1 + 2e^(-π/${totalXR.toFixed(2)}))<br>Multiplier = ${multiplier.toFixed(3)}<br>Iasym = Isym × ${multiplier.toFixed(3)} = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
                 });
             }
             
