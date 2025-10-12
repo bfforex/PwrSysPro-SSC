@@ -980,6 +980,22 @@
                         </select>
                         <div class="info-text">Choose your preferred calculation approach</div>
                     </div>
+                    
+                    <div class="form-group">
+                        <label>Fault Type:
+                            <span class="help-tooltip">
+                                <span class="help-icon">?</span>
+                                <span class="help-text">Three-phase faults typically produce highest currents. Single phase faults depend on grounding and zero-sequence impedances.</span>
+                            </span>
+                        </label>
+                        <select id="faultType">
+                            <option value="3phase">Three-Phase (3Ø)</option>
+                            <option value="line-to-ground">Line-to-Ground (L-G)</option>
+                            <option value="line-to-line">Line-to-Line (L-L)</option>
+                            <option value="double-line-to-ground">Double Line-to-Ground (2L-G)</option>
+                        </select>
+                        <div class="info-text">Select the type of fault to analyze</div>
+                    </div>
                 
                 <div class="form-group">
                     <label>Project Name:</label>
@@ -2714,6 +2730,11 @@
             cable: `
                 ${voltageZoneSelector}
                 <div class="form-group">
+                    <label>Operating Voltage (V):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 440 or 13200" step="1">
+                    <div class="info-text">Voltage level at which cable operates (for impedance referral)</div>
+                </div>
+                <div class="form-group">
                     <label>Length (meters):</label>
                     <input type="number" id="compLength" placeholder="e.g., 100" step="0.1">
                 </div>
@@ -3197,6 +3218,11 @@
                 component.resistance = parseFloat(document.getElementById('compResistance').value);
                 component.reactance = parseFloat(document.getElementById('compReactance').value);
                 component.cableType = document.getElementById('compCableType').value;
+                // Capture cable voltage if specified
+                const cableVoltageEl = document.getElementById('compVoltage');
+                if (cableVoltageEl && cableVoltageEl.value) {
+                    component.voltage = parseFloat(cableVoltageEl.value);
+                }
             } else if (type === 'generator') {
                 component.power = parseFloat(document.getElementById('compPower').value);
                 component.reactance = parseFloat(document.getElementById('compReactance').value);
@@ -3287,7 +3313,8 @@
                 if (comp.type === 'transformer') {
                     details = `${comp.power} MVA, ${comp.impedance}% Z`;
                 } else if (comp.type === 'cable') {
-                    details = `${comp.length}m, R=${comp.resistance} Ω/km, X=${comp.reactance} Ω/km`;
+                    const voltageInfo = comp.voltage ? ` @ ${comp.voltage}V` : '';
+                    details = `${comp.length}m${voltageInfo}, R=${comp.resistance} Ω/km, X=${comp.reactance} Ω/km`;
                 } else if (comp.type === 'generator') {
                     details = `${comp.power} MVA, X"d=${comp.reactance}%`;
                 } else if (comp.type === 'motor') {
@@ -3349,12 +3376,18 @@
         }
         
         function getTypicalRXRatio(type, power) {
-            // IEEE and IEC typical R/X ratios
+            // IEEE 141 and IEC typical R/X ratios
             if (type === 'transformer') {
-                if (power < 1) return 0.05; // Small transformers
-                if (power < 5) return 0.07;
-                if (power < 10) return 0.1;
-                return 0.15; // Large transformers
+                // IEEE 141 Table 4-5: Typical transformer R/X ratios
+                if (power < 1) return 0.05; // Small dry-type transformers (high R/X)
+                if (power < 2.5) return 0.07; // 1-2.5 MVA
+                if (power < 5) return 0.10; // 2.5-5 MVA
+                if (power < 10) return 0.15; // 5-10 MVA
+                return 0.20; // Large transformers > 10 MVA
+            } else if (type === 'generator') {
+                return 0.1; // Typical for synchronous generators
+            } else if (type === 'cable') {
+                return 0.25; // Typical for power cables
             }
             return 0.1; // Default
         }
@@ -3565,6 +3598,7 @@
         function calculateWithSteps(systemVoltage, standard, frequency, steps, totalImpedance, baseMVA, method) {
             if (!baseMVA) baseMVA = 100;
             const baseVoltage = systemVoltage / 1000;
+            const faultVoltage = systemVoltage; // Fault location voltage in V
             
             // Voltage factor c per standard
             let cFactor = 1.0;
@@ -3587,25 +3621,50 @@
                 cFactor = systemVoltage <= 600 ? 1.0 : 1.05;
             }
             
+            /**
+             * Helper function to refer impedance to fault voltage level
+             * Z_fault = Z_component × (V_fault / V_component)²
+             */
+            function referImpedanceToFault(r, x, componentVoltage) {
+                const voltageRatio = faultVoltage / componentVoltage;
+                const factor = voltageRatio * voltageRatio;
+                return {
+                    r: r * factor,
+                    x: x * factor,
+                    factor: factor,
+                    ratio: voltageRatio
+                };
+            }
+            
             components.forEach((comp, index) => {
                 if (comp.type === 'transformer') {
-                    const zBase = (comp.secondaryV * comp.secondaryV) / baseMVA;
-                    const zPU = (comp.impedance / 100) * (baseMVA / comp.power);
+                    // Calculate transformer impedance on SECONDARY side
+                    const zBaseSecondary = (comp.secondaryV * comp.secondaryV) / comp.power;
+                    const zOhms_Secondary = zBaseSecondary * (comp.impedance / 100);
                     
-                    // Determine R/X ratio
-                    let rxRatio = comp.rx !== null ? comp.rx : getTypicalRXRatio('transformer', comp.power);
+                    // Determine R/X ratio (use typical values if not specified)
+                    let rxRatio = comp.rx !== null && comp.rx !== undefined ? comp.rx : getTypicalRXRatio('transformer', comp.power);
                     
                     // Calculate R and X from Z and R/X ratio
-                    // Z² = R² + X², R = X × (R/X)
-                    const xPU = safeDivide(zPU, safeSqrt(1 + rxRatio * rxRatio, 1), 0);
-                    const rPU = xPU * rxRatio;
+                    // Z = √(R² + X²), R = X × (R/X), therefore X = Z / √(1 + (R/X)²)
+                    const xOhms_Secondary = safeDivide(zOhms_Secondary, safeSqrt(1 + rxRatio * rxRatio, 1), 0);
+                    const rOhms_Secondary = xOhms_Secondary * rxRatio;
                     
-                    totalImpedance.r += rPU * zBase;
-                    totalImpedance.x += xPU * zBase;
+                    // Refer to fault voltage level (secondary side in V)
+                    const secondaryVoltage = comp.secondaryV * 1000; // Convert kV to V
+                    const referred = referImpedanceToFault(rOhms_Secondary, xOhms_Secondary, secondaryVoltage);
+                    
+                    totalImpedance.r += referred.r;
+                    totalImpedance.x += referred.x;
+                    
+                    let referralNote = '';
+                    if (Math.abs(referred.factor - 1.0) > 0.001) {
+                        referralNote = `<br>⚡ Referred to ${faultVoltage}V: multiply by (${faultVoltage}/${secondaryVoltage})² = ${referred.factor.toFixed(6)}<br>R@fault = ${referred.r.toFixed(6)} Ω, X@fault = ${referred.x.toFixed(6)} Ω`;
+                    }
                     
                     steps.push({
                         title: `Transformer ${index + 1} (Per ${standard.toUpperCase()})`,
-                        content: `Rated: ${comp.power} MVA, ${comp.primaryV}/${comp.secondaryV} kV<br>Impedance: ${comp.impedance}%<br>R/X Ratio: ${rxRatio.toFixed(3)} ${comp.rx === null ? '(typical)' : '(specified)'}<br>Zbase = ${zBase.toFixed(4)} Ω<br>Z(pu) = ${comp.impedance}% × (${baseMVA}/${comp.power}) = ${zPU.toFixed(4)} pu<br>X(pu) = ${xPU.toFixed(4)} pu → ${(xPU * zBase).toFixed(4)} Ω<br>R(pu) = ${rPU.toFixed(4)} pu → ${(rPU * zBase).toFixed(4)} Ω`
+                        content: `Rated: ${comp.power} MVA, ${comp.primaryV}/${comp.secondaryV} kV<br>Impedance: ${comp.impedance}%<br>R/X Ratio: ${rxRatio.toFixed(3)} ${comp.rx === null || comp.rx === undefined ? '(typical IEEE)' : '(specified)'}<br>Z_base(sec) = V²/S = (${comp.secondaryV})²/${comp.power} = ${zBaseSecondary.toFixed(4)} Ω<br>Z_tx(sec) = ${comp.impedance}% × ${zBaseSecondary.toFixed(4)} = ${zOhms_Secondary.toFixed(6)} Ω<br>R(sec) = ${rOhms_Secondary.toFixed(6)} Ω<br>X(sec) = ${xOhms_Secondary.toFixed(6)} Ω${referralNote}`
                     });
                 } else if (comp.type === 'cable') {
                     // Apply temperature correction if operating temperature is specified
@@ -3616,99 +3675,162 @@
                         // For aluminum: use 228 instead of 234.5
                         const tempCoeff = 234.5; // Copper constant
                         rCorrected = comp.resistance * (tempCoeff + comp.operatingTemp) / (tempCoeff + 20);
-                        tempNote = `<br>Temperature corrected from 20°C to ${comp.operatingTemp}°C<br>R@${comp.operatingTemp}°C = ${comp.resistance} × ${((tempCoeff + comp.operatingTemp) / (tempCoeff + 20)).toFixed(3)} = ${rCorrected.toFixed(4)} Ω/km`;
+                        tempNote = `<br>🌡️ Temperature corrected from 20°C to ${comp.operatingTemp}°C<br>R@${comp.operatingTemp}°C = ${comp.resistance} × ${((tempCoeff + comp.operatingTemp) / (tempCoeff + 20)).toFixed(3)} = ${rCorrected.toFixed(4)} Ω/km`;
                     }
                     
+                    // Convert Ω/km to Ω: multiply by (length_m / 1000)
                     const r = rCorrected * comp.length / 1000;
                     const x = comp.reactance * comp.length / 1000;
                     
-                    totalImpedance.r += r;
-                    totalImpedance.x += x;
+                    // Determine cable voltage level (from voltage zone or voltage field)
+                    let cableVoltage = faultVoltage; // Default: same as fault voltage
+                    if (comp.voltage) {
+                        cableVoltage = comp.voltage; // Use specified voltage if available
+                    }
+                    
+                    // Refer to fault voltage level if necessary
+                    const referred = referImpedanceToFault(r, x, cableVoltage);
+                    
+                    totalImpedance.r += referred.r;
+                    totalImpedance.x += referred.x;
+                    
+                    let referralNote = '';
+                    if (Math.abs(referred.factor - 1.0) > 0.001) {
+                        referralNote = `<br>⚡ Referred to ${faultVoltage}V: multiply by (${faultVoltage}/${cableVoltage})² = ${referred.factor.toFixed(6)}<br>R@fault = ${referred.r.toFixed(6)} Ω, X@fault = ${referred.x.toFixed(6)} Ω`;
+                    }
                     
                     steps.push({
                         title: `Cable ${index + 1} (Per ${standard.toUpperCase()})`,
-                        content: `Type: ${comp.cableType === 'single' ? 'Single Core' : 'Multi Core'}<br>Length: ${comp.length} m${tempNote}<br>R = ${rCorrected.toFixed(4)} Ω/km × ${comp.length/1000} km = ${r.toFixed(4)} Ω<br>X = ${comp.reactance} Ω/km × ${comp.length/1000} km = ${x.toFixed(4)} Ω`
+                        content: `Type: ${comp.cableType === 'single' ? 'Single Core' : 'Multi Core'}<br>Length: ${comp.length} m @ ${cableVoltage}V${tempNote}<br>R = ${rCorrected.toFixed(4)} Ω/km × (${comp.length}/1000) km = ${r.toFixed(6)} Ω<br>X = ${comp.reactance.toFixed(4)} Ω/km × (${comp.length}/1000) km = ${x.toFixed(6)} Ω${referralNote}`
                     });
                 } else if (comp.type === 'generator') {
-                    const zBase = (comp.voltage * comp.voltage) / baseMVA;
-                    const xdPU = (comp.reactance / 100) * (baseMVA / comp.power);
+                    // Calculate generator impedance at its rated voltage
+                    const genVoltage = comp.voltage * 1000; // Convert kV to V
+                    const zBase = (comp.voltage * comp.voltage) / comp.power;
+                    const xdPU = comp.reactance / 100;
                     
-                    const rxRatio = comp.rx;
-                    const xPU = safeDivide(xdPU, safeSqrt(1 + rxRatio * rxRatio, 1), 0);
-                    const rPU = xPU * rxRatio;
+                    const rxRatio = comp.rx || 0.1; // Typical for synchronous generators
+                    const xOhms = safeDivide(xdPU * zBase, safeSqrt(1 + rxRatio * rxRatio, 1), 0);
+                    const rOhms = xOhms * rxRatio;
                     
-                    totalImpedance.r += rPU * zBase;
-                    totalImpedance.x += xPU * zBase;
+                    // Refer to fault voltage level
+                    const referred = referImpedanceToFault(rOhms, xOhms, genVoltage);
+                    
+                    totalImpedance.r += referred.r;
+                    totalImpedance.x += referred.x;
+                    
+                    let referralNote = '';
+                    if (Math.abs(referred.factor - 1.0) > 0.001) {
+                        referralNote = `<br>⚡ Referred to ${faultVoltage}V: multiply by (${faultVoltage}/${genVoltage})² = ${referred.factor.toFixed(6)}<br>R@fault = ${referred.r.toFixed(6)} Ω, X@fault = ${referred.x.toFixed(6)} Ω`;
+                    }
                     
                     steps.push({
                         title: `Generator ${index + 1} (Per ${standard.toUpperCase()})`,
-                        content: `Rated: ${comp.power} MVA, ${comp.voltage} kV<br>X"d (Subtransient): ${comp.reactance}%<br>R/X Ratio: ${rxRatio}<br>Zbase = ${zBase.toFixed(4)} Ω<br>X"d(pu) = ${comp.reactance}% × (${baseMVA}/${comp.power}) = ${xdPU.toFixed(4)} pu<br>X(actual) = ${(xPU * zBase).toFixed(4)} Ω<br>R(actual) = ${(rPU * zBase).toFixed(4)} Ω`
+                        content: `Rated: ${comp.power} MVA, ${comp.voltage} kV<br>X"d (Subtransient): ${comp.reactance}%<br>R/X Ratio: ${rxRatio}<br>Zbase = V²/S = (${comp.voltage})²/${comp.power} = ${zBase.toFixed(4)} Ω<br>X"d = ${xdPU.toFixed(4)} pu = ${xOhms.toFixed(6)} Ω<br>R = ${rOhms.toFixed(6)} Ω${referralNote}`
                     });
                 } else if (comp.type === 'motor') {
                     const powerKW = comp.powerUnit === 'hp' ? comp.power * 0.746 : comp.power;
                     const eff = comp.efficiency / 100;
                     const pf = comp.pf;
+                    const motorVoltage = comp.voltage; // Motor voltage in V
                     
                     // Full load current
-                    const fla = safeDivide(powerKW * 1000, safeSqrt(3) * comp.voltage * eff * pf, 1);
+                    const fla = safeDivide(powerKW * 1000, safeSqrt(3) * motorVoltage * eff * pf, 1);
                     const lra = fla * comp.lrc;
                     
-                    // Motor impedance at locked rotor
-                    const zMotor = safeDivide(safeDivide(comp.voltage, safeSqrt(3), 1), lra, 0.001);
+                    // Motor impedance at locked rotor (first cycle contribution per IEEE 141)
+                    const zMotor = safeDivide(safeDivide(motorVoltage, safeSqrt(3), 1), lra, 0.001);
                     
                     // Motors are highly reactive at locked rotor, typical X/R = 10-20
                     const motorXR = 15; // Typical for locked rotor
                     const xMotor = safeDivide(zMotor, safeSqrt(1 + 1/(motorXR * motorXR), 1), 0);
                     const rMotor = safeDivide(xMotor, motorXR, 0);
                     
-                    totalImpedance.r += rMotor;
-                    totalImpedance.x += xMotor;
+                    // Refer to fault voltage level
+                    const referred = referImpedanceToFault(rMotor, xMotor, motorVoltage);
+                    
+                    // Motors contribute current in PARALLEL, so we need to handle this differently
+                    // For now, add impedance (will improve later with proper parallel calculation)
+                    totalImpedance.r += referred.r;
+                    totalImpedance.x += referred.x;
+                    
+                    let referralNote = '';
+                    if (Math.abs(referred.factor - 1.0) > 0.001) {
+                        referralNote = `<br>⚡ Referred to ${faultVoltage}V: multiply by (${faultVoltage}/${motorVoltage})² = ${referred.factor.toFixed(6)}<br>R@fault = ${referred.r.toFixed(6)} Ω, X@fault = ${referred.x.toFixed(6)} Ω`;
+                    }
                     
                     steps.push({
-                        title: `Motor ${index + 1} (Per ${standard.toUpperCase()})`,
-                        content: `Rated: ${comp.power} ${comp.powerUnit.toUpperCase()} (${powerKW.toFixed(2)} kW)<br>Efficiency: ${comp.efficiency}%, Power Factor: ${pf}<br>FLA = ${powerKW}×1000 / (√3 × ${comp.voltage} × ${eff} × ${pf}) = ${fla.toFixed(2)} A<br>LRA = FLA × ${comp.lrc} = ${lra.toFixed(2)} A<br>Zlocked = ${comp.voltage}/√3 / ${lra.toFixed(2)} = ${zMotor.toFixed(4)} Ω<br>X/R ≈ ${motorXR} (typical locked rotor)<br>X = ${xMotor.toFixed(4)} Ω, R = ${rMotor.toFixed(4)} Ω`
+                        title: `🔌 Motor ${index + 1} - Contribution (IEEE 141)`,
+                        content: `Rated: ${comp.power} ${comp.powerUnit.toUpperCase()} (${powerKW.toFixed(2)} kW) @ ${motorVoltage}V<br>Efficiency: ${comp.efficiency}%, Power Factor: ${pf}<br>FLA = ${powerKW}×1000 / (√3 × ${motorVoltage} × ${eff} × ${pf}) = ${fla.toFixed(2)} A<br>LRA = FLA × ${comp.lrc} = ${lra.toFixed(2)} A<br>Z_locked = ${motorVoltage}/√3 / ${lra.toFixed(2)} = ${zMotor.toFixed(6)} Ω<br>X/R ≈ ${motorXR} (typical locked rotor)<br>R = ${rMotor.toFixed(6)} Ω, X = ${xMotor.toFixed(6)} Ω${referralNote}`
                     });
                 } else if (comp.type === 'utility_isc') {
                     // Calculate impedance from short circuit current
-                    const z = safeDivide(comp.voltage * 1000, safeSqrt(3) * comp.isc * 1000, 0.001);
+                    const utilityVoltage = comp.voltage * 1000; // Convert kV to V
+                    const z = safeDivide(utilityVoltage, safeSqrt(3) * comp.isc * 1000, 0.001);
                     const x = safeDivide(z * comp.xr, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     const r = safeDivide(z, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     
-                    totalImpedance.r += r;
-                    totalImpedance.x += x;
+                    // Refer to fault voltage level
+                    const referred = referImpedanceToFault(r, x, utilityVoltage);
+                    
+                    totalImpedance.r += referred.r;
+                    totalImpedance.x += referred.x;
+                    
+                    let referralNote = '';
+                    if (Math.abs(referred.factor - 1.0) > 0.001) {
+                        referralNote = `<br>⚡ Referred to ${faultVoltage}V: multiply by (${faultVoltage}/${utilityVoltage})² = ${referred.factor.toFixed(6)}<br>R@fault = ${referred.r.toFixed(6)} Ω, X@fault = ${referred.x.toFixed(6)} Ω`;
+                    }
                     
                     steps.push({
                         title: `Utility Source ${index + 1} - ISC Method (Per ${standard.toUpperCase()})`,
-                        content: `Available ISC: ${comp.isc} kA (3-phase)<br>System Voltage: ${comp.voltage} kV<br>X/R Ratio: ${comp.xr}<br>Zsource = V/(√3 × ISC) = ${comp.voltage}/(√3 × ${comp.isc}) = ${z.toFixed(4)} Ω<br>From X/R ratio:<br>R = Z/√(1 + (X/R)²) = ${r.toFixed(4)} Ω<br>X = Z × (X/R)/√(1 + (X/R)²) = ${x.toFixed(4)} Ω`
+                        content: `Available ISC: ${comp.isc} kA (3-phase)<br>System Voltage: ${comp.voltage} kV (${utilityVoltage}V)<br>X/R Ratio: ${comp.xr}<br>Zsource = V/(√3 × ISC) = ${utilityVoltage}V/(√3 × ${comp.isc}kA) = ${z.toFixed(6)} Ω<br>From X/R ratio:<br>R = ${r.toFixed(6)} Ω<br>X = ${x.toFixed(6)} Ω${referralNote}`
                     });
                 } else if (comp.type === 'utility_mva') {
                     // Calculate impedance from fault MVA
-                    const isc = safeDivide(comp.mva * 1000, safeSqrt(3) * comp.voltage*1000, 0.001);
-                    const z = safeDivide(comp.voltage * 1000, safeSqrt(3) * isc * 1000, 0.001);
+                    const utilityVoltage = comp.voltage * 1000; // Convert kV to V
+                    const isc = safeDivide(comp.mva * 1000, safeSqrt(3) * comp.voltage, 0.001);
+                    const z = safeDivide(utilityVoltage, safeSqrt(3) * isc * 1000, 0.001);
                     const x = safeDivide(z * comp.xr, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     const r = safeDivide(z, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     
-                    totalImpedance.r += r;
-                    totalImpedance.x += x;
+                    // Refer to fault voltage level
+                    const referred = referImpedanceToFault(r, x, utilityVoltage);
+                    
+                    totalImpedance.r += referred.r;
+                    totalImpedance.x += referred.x;
+                    
+                    let referralNote = '';
+                    if (Math.abs(referred.factor - 1.0) > 0.001) {
+                        referralNote = `<br>⚡ Referred to ${faultVoltage}V: multiply by (${faultVoltage}/${utilityVoltage})² = ${referred.factor.toFixed(6)}<br>R@fault = ${referred.r.toFixed(6)} Ω, X@fault = ${referred.x.toFixed(6)} Ω`;
+                    }
                     
                     steps.push({
                         title: `Utility Source ${index + 1} - MVA Method (Per ${standard.toUpperCase()})`,
-                        content: `Available Fault MVA: ${comp.mva} MVA<br>System Voltage: ${comp.voltage} kV<br>X/R Ratio: ${comp.xr}<br>ISC = MVA/(√3 × V) = ${comp.mva}/(√3 × ${comp.voltage}) = ${isc.toFixed(2)} kA<br>Zsource = V/(√3 × ISC) = ${z.toFixed(4)} Ω<br>From X/R ratio:<br>R = ${r.toFixed(4)} Ω<br>X = ${x.toFixed(4)} Ω`
+                        content: `Available Fault MVA: ${comp.mva} MVA<br>System Voltage: ${comp.voltage} kV (${utilityVoltage}V)<br>X/R Ratio: ${comp.xr}<br>ISC = MVA/(√3 × V) = ${comp.mva}MVA/(√3 × ${comp.voltage}kV) = ${isc.toFixed(2)} kA<br>Zsource = ${utilityVoltage}V/(√3 × ${isc.toFixed(2)}kA) = ${z.toFixed(6)} Ω<br>From X/R ratio:<br>R = ${r.toFixed(6)} Ω<br>X = ${x.toFixed(6)} Ω${referralNote}`
                     });
                 } else if (comp.type === 'utility_impedance') {
                     // Calculate impedance from percent impedance
+                    const utilityVoltage = comp.voltage * 1000; // Convert kV to V
                     const zBase = safeDivide(comp.voltage * comp.voltage, comp.baseMVA, 0.001);
                     const zPU = safeDivide(comp.impedance, 100, 0.01);
                     const z = zPU * zBase;
                     const x = safeDivide(z * comp.xr, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     const r = safeDivide(z, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     
-                    totalImpedance.r += r;
-                    totalImpedance.x += x;
+                    // Refer to fault voltage level
+                    const referred = referImpedanceToFault(r, x, utilityVoltage);
+                    
+                    totalImpedance.r += referred.r;
+                    totalImpedance.x += referred.x;
+                    
+                    let referralNote = '';
+                    if (Math.abs(referred.factor - 1.0) > 0.001) {
+                        referralNote = `<br>⚡ Referred to ${faultVoltage}V: multiply by (${faultVoltage}/${utilityVoltage})² = ${referred.factor.toFixed(6)}<br>R@fault = ${referred.r.toFixed(6)} Ω, X@fault = ${referred.x.toFixed(6)} Ω`;
+                    }
                     
                     steps.push({
                         title: `Utility Source ${index + 1} - Impedance Method (Per ${standard.toUpperCase()})`,
-                        content: `Source Impedance: ${comp.impedance}% on ${comp.baseMVA} MVA base<br>System Voltage: ${comp.voltage} kV<br>X/R Ratio: ${comp.xr}<br>Zbase = V²/MVAbase = ${comp.voltage}²/${comp.baseMVA} = ${zBase.toFixed(4)} Ω<br>Zsource = ${comp.impedance}% × ${zBase.toFixed(4)} = ${z.toFixed(4)} Ω<br>From X/R ratio:<br>R = ${r.toFixed(4)} Ω<br>X = ${x.toFixed(4)} Ω`
+                        content: `Source Impedance: ${comp.impedance}% on ${comp.baseMVA} MVA base<br>System Voltage: ${comp.voltage} kV (${utilityVoltage}V)<br>X/R Ratio: ${comp.xr}<br>Zbase = V²/MVAbase = ${comp.voltage}²/${comp.baseMVA} = ${zBase.toFixed(4)} Ω<br>Zsource = ${comp.impedance}% × ${zBase.toFixed(4)} = ${z.toFixed(6)} Ω<br>From X/R ratio:<br>R = ${r.toFixed(6)} Ω<br>X = ${x.toFixed(6)} Ω${referralNote}`
                     });
                 }
             });
@@ -3731,10 +3853,42 @@
                 content: `ΣR = ${totalImpedance.r.toFixed(4)} Ω<br>ΣX = ${totalImpedance.x.toFixed(4)} Ω<br>Ztotal = √(R² + X²) = √(${totalImpedance.r.toFixed(4)}² + ${totalImpedance.x.toFixed(4)}²) = ${totalZ.toFixed(4)} Ω<br>X/R Ratio = ${totalXR.toFixed(2)}`
             });
             
-            // Calculate symmetrical short circuit current
+            // Get fault type
+            const faultTypeEl = document.getElementById('faultType');
+            const faultType = faultTypeEl ? faultTypeEl.value : '3phase';
+            
+            // Calculate symmetrical short circuit current (three-phase base)
             const vPhase = safeDivide(systemVoltage * cFactor, safeSqrt(3), 0);
-            const iscSymm = safeDivide(vPhase, totalZ, 0);
-            const iscSymmKA = safeDivide(iscSymm, 1000, 0);
+            let iscSymm = safeDivide(vPhase, totalZ, 0);
+            let iscSymmKA = safeDivide(iscSymm, 1000, 0);
+            
+            // Apply fault type multipliers
+            // NOTE: Proper analysis requires sequence impedances (Z0, Z1, Z2)
+            // These are simplified multipliers for typical solidly-grounded systems
+            let faultTypeMultiplier = 1.0;
+            let faultTypeNote = '';
+            
+            if (faultType === 'line-to-ground') {
+                // L-G: Simplified - typically 75-85% of 3-phase for solidly grounded systems
+                faultTypeMultiplier = 0.8;
+                faultTypeNote = '<br>⚠️ L-G fault: Using simplified multiplier (0.8×3Ø). For accurate results, specify Z0 (zero-sequence impedance).';
+                iscSymm = iscSymm * faultTypeMultiplier;
+                iscSymmKA = iscSymmKA * faultTypeMultiplier;
+            } else if (faultType === 'line-to-line') {
+                // L-L: Approximately 87% of 3-phase (= √3/2 × 3-phase)
+                faultTypeMultiplier = 0.866;
+                faultTypeNote = '<br>⚠️ L-L fault: I_LL = (√3/2) × I_3Ø = 0.866 × I_3Ø';
+                iscSymm = iscSymm * faultTypeMultiplier;
+                iscSymmKA = iscSymmKA * faultTypeMultiplier;
+            } else if (faultType === 'double-line-to-ground') {
+                // 2L-G: Typically between L-L and 3-phase, use 95% as approximation
+                faultTypeMultiplier = 0.95;
+                faultTypeNote = '<br>⚠️ 2L-G fault: Using simplified multiplier (0.95×3Ø). For accurate results, specify Z0 and Z2.';
+                iscSymm = iscSymm * faultTypeMultiplier;
+                iscSymmKA = iscSymmKA * faultTypeMultiplier;
+            } else {
+                faultTypeNote = '<br>Three-phase fault (maximum fault current)';
+            }
             
             // Validate symmetrical current result
             const symmValidation = validateCalculationResult(iscSymmKA, 'Symmetrical Current (kA)', 0.001, 1000);
@@ -3763,8 +3917,8 @@
                 multiplier = kappa; // For result storage
                 
                 steps.push({
-                    title: 'Short Circuit Current Calculation (IEC 60909)',
-                    content: `Symmetrical (RMS) Current I"k:<br>I"k = (c × Vn)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>I"k = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Peak Current ip (per IEC 60909-0):${kappaNote}<br>ip = κ × √2 × I"k = ${kappa.toFixed(3)} × 1.414 × ${iscSymmKA.toFixed(2)}<br>ip = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
+                    title: `Short Circuit Current Calculation (IEC 60909) - ${faultType.toUpperCase()}`,
+                    content: `Symmetrical (RMS) Current I"k:<br>I"k = (c × Vn)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>I"k = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong>${faultTypeNote}<br><br>Peak Current ip (per IEC 60909-0):${kappaNote}<br>ip = κ × √2 × I"k = ${kappa.toFixed(3)} × 1.414 × ${iscSymmKA.toFixed(2)}<br>ip = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
                 });
             } else {
                 // IEEE: Asymmetrical = Symmetrical × multiplier based on X/R
@@ -3774,8 +3928,8 @@
                 kappa = multiplier; // For result storage
                 
                 steps.push({
-                    title: 'Short Circuit Current Calculation (IEEE 141/C37)',
-                    content: `Symmetrical RMS Current:<br>Isym = (c × V)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>Isym = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong><br><br>Asymmetrical (First Cycle) Current (per IEEE):<br>Multiplier = √(1 + 2e^(-π/(X/R))) = √(1 + 2e^(-π/${totalXR.toFixed(2)}))<br>Multiplier = ${multiplier.toFixed(3)}<br>Iasym = Isym × ${multiplier.toFixed(3)} = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
+                    title: `Short Circuit Current Calculation (IEEE 141/C37) - ${faultType.toUpperCase()}`,
+                    content: `Symmetrical RMS Current:<br>Isym = (c × V)/(√3 × Z) = (${cFactor} × ${systemVoltage})/(√3 × ${totalZ.toFixed(4)})<br>Isym = ${vPhase.toFixed(2)}/${totalZ.toFixed(4)} = ${iscSymm.toFixed(2)} A = <strong>${iscSymmKA.toFixed(2)} kA</strong>${faultTypeNote}<br><br>Asymmetrical (First Cycle) Current (per IEEE):<br>Multiplier = √(1 + 2e^(-π/(X/R))) = √(1 + 2e^(-π/${totalXR.toFixed(2)}))<br>Multiplier = ${multiplier.toFixed(3)}<br>Iasym = Isym × ${multiplier.toFixed(3)} = <strong>${iscAsymmKA.toFixed(2)} kA</strong>`
                 });
             }
             
@@ -4623,6 +4777,68 @@
                     theme: 'striped',
                     headStyles: { fillColor: [239, 68, 68] }
                 });
+                
+                yPos = doc.lastAutoTable.finalY + 15;
+                
+                // Detailed Calculation Steps (NEW)
+                if (calculationResults.steps && calculationResults.steps.length > 0) {
+                    // Add new page for detailed calculations
+                    doc.addPage();
+                    yPos = 20;
+                    
+                    doc.setFontSize(16);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Detailed Calculation Trace', 20, yPos);
+                    yPos += 10;
+                    
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                    
+                    calculationResults.steps.forEach((step, index) => {
+                        // Check if we need a new page
+                        if (yPos > pageHeight - 30) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        // Step title
+                        doc.setFont(undefined, 'bold');
+                        doc.setFontSize(10);
+                        doc.text(`${index + 1}. ${step.title}`, 20, yPos);
+                        yPos += 6;
+                        
+                        // Step content - clean HTML and convert to plain text with Unicode
+                        doc.setFont(undefined, 'normal');
+                        doc.setFontSize(9);
+                        let content = step.content
+                            .replace(/<br\s*\/?>/gi, '\n')
+                            .replace(/<strong>/gi, '')
+                            .replace(/<\/strong>/gi, '')
+                            .replace(/&times;/gi, '×')
+                            .replace(/&divide;/gi, '÷')
+                            .replace(/&plusmn;/gi, '±')
+                            .replace(/&deg;/gi, '°')
+                            .replace(/&Omega;/gi, 'Ω')
+                            .replace(/&micro;/gi, 'μ')
+                            .replace(/&sup2;/gi, '²')
+                            .replace(/&sup3;/gi, '³')
+                            .replace(/&radic;/gi, '√')
+                            .replace(/<[^>]*>/g, ''); // Remove remaining HTML tags
+                        
+                        // Split content into lines and handle wrapping
+                        const lines = doc.splitTextToSize(content, 170);
+                        lines.forEach(line => {
+                            if (yPos > pageHeight - 15) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            doc.text(line, 25, yPos);
+                            yPos += 5;
+                        });
+                        
+                        yPos += 3; // Extra spacing between steps
+                    });
+                }
                 
                 // Footer
                 const pageCount = doc.internal.getNumberOfPages();
@@ -5730,6 +5946,11 @@
          * Initialize application on page load
          */
         window.addEventListener('load', () => {
+            // Initialize UI interaction handlers
+            if (typeof initializeUIInteractions === 'function') {
+                initializeUIInteractions();
+            }
+            
             initializeAutoSave();
             initializeKeyboardShortcuts();
             loadEquipmentDatabase();
