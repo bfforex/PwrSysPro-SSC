@@ -115,6 +115,11 @@ function setupExportHandlers() {
         exportPDFBtn.addEventListener('click', handleExportPDF);
     }
     
+    const exportEnhancedPdfBtn = document.getElementById('exportEnhancedPdf');
+    if (exportEnhancedPdfBtn) {
+        exportEnhancedPdfBtn.addEventListener('click', handleExportEnhancedPDF);
+    }
+    
     const exportExcelBtn = document.getElementById('exportExcel');
     if (exportExcelBtn) {
         exportExcelBtn.addEventListener('click', handleExportExcel);
@@ -698,6 +703,81 @@ function displayComprehensiveResults(results) {
     
     html += `</div>`;
     container.innerHTML = html;
+}
+
+/**
+ * Handle enhanced PDF export with auto-run
+ */
+async function handleExportEnhancedPDF() {
+    try {
+        // Check if results exist in ResultsStore
+        let results = null;
+        if (window.resultsStore && window.resultsStore.hasResults()) {
+            results = window.resultsStore.getResults();
+            console.log('[Export] Using stored results from ResultsStore');
+        }
+        
+        // If no results, auto-run analysis
+        if (!results) {
+            console.log('[Export] No results found, auto-running analysis...');
+            showToast('No calculation results found. Running analysis...', 'info');
+            
+            // Show loading
+            showLoadingIndicator('Running analysis before export...');
+            disableCalculationButtons(true);
+            
+            // Gather project data and run analysis
+            const projectData = gatherProjectData();
+            const analysisResult = await window.calculationOrchestrator.runAllAnalysis(projectData);
+            
+            if (!analysisResult.success) {
+                throw new Error('Analysis failed: ' + analysisResult.error);
+            }
+            
+            results = analysisResult.results;
+            hideLoadingIndicator();
+            disableCalculationButtons(false);
+        }
+        
+        // Generate PDF
+        if (!results) {
+            throw new Error('No calculation results available for export');
+        }
+        
+        showLoadingIndicator('Generating PDF report...');
+        
+        const projectData = results.projectData || gatherProjectData();
+        const pdfResult = await generateEnhancedPDF(results, projectData);
+        
+        hideLoadingIndicator();
+        
+        if (pdfResult.success) {
+            showToast(`PDF exported successfully: ${pdfResult.filename}`, 'success');
+        } else {
+            throw new Error('PDF generation failed');
+        }
+        
+    } catch (error) {
+        hideLoadingIndicator();
+        disableCalculationButtons(false);
+        console.error('[Export] Error:', error);
+        showToast('Export error: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Handle export PDF (legacy)
+ */
+function handleExportPDF() {
+    // Delegate to enhanced export
+    handleExportEnhancedPDF();
+}
+
+/**
+ * Handle export Excel
+ */
+function handleExportExcel() {
+    showToast('Excel export not yet implemented', 'info');
 }
 
 // Initialize on DOM load
