@@ -74,6 +74,17 @@ function setupBusManagementHandlers() {
  * Setup calculation handlers
  */
 function setupCalculationHandlers() {
+    // Initialize orchestrator
+    if (!window.calculationOrchestrator) {
+        window.calculationOrchestrator = new CalculationOrchestrator();
+    }
+    
+    // Run All Analysis button
+    const runAllBtn = document.getElementById('runAllAnalysis');
+    if (runAllBtn) {
+        runAllBtn.addEventListener('click', handleRunAllAnalysis);
+    }
+    
     const calcShortCircuitBtn = document.getElementById('calculateShortCircuit');
     if (calcShortCircuitBtn) {
         calcShortCircuitBtn.addEventListener('click', handleShortCircuitCalculation);
@@ -165,138 +176,150 @@ function handleConnectBuses() {
 }
 
 /**
- * Handle short circuit calculation
+ * Handle run all analysis
  */
-function handleShortCircuitCalculation() {
-    // Gather inputs
-    const voltage = parseFloat(document.getElementById('systemVoltage')?.value);
-    const standard = document.getElementById('standard')?.value || 'IEC';
-    
-    // Validate inputs
-    const validation = validateAllInputs({ voltage });
-    if (!validation.valid) {
-        alert('Validation errors:\n' + validation.errors.join('\n'));
-        return;
-    }
-    
-    // Show loading
-    showLoadingIndicator('Calculating...');
-    
-    // Perform calculation (setTimeout to allow UI update)
-    setTimeout(() => {
-        try {
-            let results;
-            if (standard === 'IEC') {
-                results = calculateIECShortCircuit({
-                    voltage: voltage,
-                    impedanceR: 0.1,
-                    impedanceX: 1.0,
-                    faultType: 'max'
-                });
-            } else {
-                results = calculateIEEEShortCircuit({
-                    voltage: voltage,
-                    impedanceR: 0.1,
-                    impedanceX: 1.0,
-                    faultLocation: 'remote'
-                });
-            }
-            
-            // Verify results
-            const verification = verifyCalculationResults(results, standard);
+async function handleRunAllAnalysis() {
+    try {
+        // Gather project data
+        const projectData = gatherProjectData();
+        
+        // Show loading
+        showLoadingIndicator('Running comprehensive analysis...');
+        disableCalculationButtons(true);
+        
+        // Run orchestrator
+        const result = await window.calculationOrchestrator.runAllAnalysis(projectData);
+        
+        if (result.success) {
+            // Store results globally
+            window.calculationResults = result.results;
             
             // Display results
-            displayShortCircuitResults(results, verification);
+            displayComprehensiveResults(result.results);
             
-            hideLoadingIndicator();
-            showToast('Calculation completed successfully', 'success');
-        } catch (error) {
-            hideLoadingIndicator();
-            showToast('Calculation error: ' + error.message, 'error');
+            showToast('Analysis completed successfully', 'success');
+        } else {
+            showToast('Analysis failed: ' + result.error, 'error');
+            console.error('Analysis error:', result);
         }
-    }, 100);
+        
+    } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+        console.error('Run all analysis error:', error);
+    } finally {
+        hideLoadingIndicator();
+        disableCalculationButtons(false);
+    }
 }
 
 /**
+ * Handle short circuit calculation
+ */
+async function handleShortCircuitCalculation() {
+    try {
+        // Gather project data
+        const projectData = gatherProjectData();
+        
+        // Show loading
+        showLoadingIndicator('Calculating short circuit...');
+        disableCalculationButtons(true);
+        
+        // Run orchestrator
+        const result = await window.calculationOrchestrator.runShortCircuitAnalysis(projectData);
+        
+        if (result.success) {
+            // Store results
+            window.calculationResults = window.calculationResults || {};
+            window.calculationResults.shortCircuit = result.shortCircuit;
+            window.calculationResults.motorContribution = result.motorContribution;
+            
+            // Display results
+            displayShortCircuitResults(result.shortCircuit, result.motorContribution);
+            
+            showToast('Short circuit calculation completed', 'success');
+        } else {
+            showToast('Calculation failed: ' + result.error, 'error');
+        }
+        
+    } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+        console.error('Short circuit calculation error:', error);
+    } finally {
+        hideLoadingIndicator();
+        disableCalculationButtons(false);
+    }
+}
+/**
  * Handle arc flash calculation
  */
-function handleArcFlashCalculation() {
-    const voltage = parseFloat(document.getElementById('systemVoltage')?.value);
-    const faultCurrent = parseFloat(document.getElementById('faultCurrent')?.value);
-    const workingDistance = parseFloat(document.getElementById('workingDistance')?.value) || 450;
-    const arcDuration = parseFloat(document.getElementById('arcDuration')?.value) || 0.1;
-    
-    // Validate
-    const validation = validateAllInputs({
-        voltage,
-        faultCurrent,
-        workingDistance,
-        arcDuration
-    });
-    
-    if (!validation.valid) {
-        alert('Validation errors:\n' + validation.errors.join('\n'));
-        return;
-    }
-    
-    showLoadingIndicator('Calculating arc flash...');
-    
-    setTimeout(() => {
-        try {
-            const results = calculateArcFlashIEEE1584_2018({
-                voltage: voltage,
-                boltedFaultCurrent: faultCurrent,
-                workingDistance: workingDistance,
-                arcDuration: arcDuration,
-                equipmentGap: 32,
-                enclosureType: 'VCB'
-            });
+async function handleArcFlashCalculation() {
+    try {
+        // Gather project data
+        const projectData = gatherProjectData();
+        
+        // Show loading
+        showLoadingIndicator('Calculating arc flash...');
+        disableCalculationButtons(true);
+        
+        // Run orchestrator
+        const result = await window.calculationOrchestrator.runArcFlashAnalysis(projectData);
+        
+        if (result.success) {
+            // Store results
+            window.calculationResults = window.calculationResults || {};
+            window.calculationResults.arcFlash = result.arcFlash;
             
-            if (results.applicable) {
-                const ppeReport = generatePPEReport(results);
-                displayArcFlashResults(results, ppeReport);
-            } else {
-                alert(results.error);
-            }
+            // Display results
+            displayArcFlashResults(result.arcFlash);
             
-            hideLoadingIndicator();
             showToast('Arc flash calculation completed', 'success');
-        } catch (error) {
-            hideLoadingIndicator();
-            showToast('Calculation error: ' + error.message, 'error');
+        } else {
+            showToast('Calculation failed: ' + result.error, 'error');
         }
-    }, 100);
+        
+    } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+        console.error('Arc flash calculation error:', error);
+    } finally {
+        hideLoadingIndicator();
+        disableCalculationButtons(false);
+    }
 }
 
 /**
  * Handle voltage drop calculation
  */
-function handleVoltageDropCalculation() {
-    const voltage = parseFloat(document.getElementById('voltageDropVoltage')?.value);
-    const current = parseFloat(document.getElementById('voltageDropCurrent')?.value);
-    const length = parseFloat(document.getElementById('voltageDropLength')?.value);
-    const conductorSize = document.getElementById('conductorSize')?.value || '10';
-    const phaseType = document.getElementById('phaseType')?.value || 'three-phase';
-    
-    showLoadingIndicator('Calculating voltage drop...');
-    
-    setTimeout(() => {
-        try {
-            const results = performVoltageDropAnalysis({
-                voltage: voltage,
-                current: current,
-                length: length,
-                conductorSize: conductorSize,
-                phaseType: phaseType,
-                powerFactor: 0.85
-            });
+async function handleVoltageDropCalculation() {
+    try {
+        // Gather project data
+        const projectData = gatherProjectData();
+        
+        // Show loading
+        showLoadingIndicator('Calculating voltage drop...');
+        disableCalculationButtons(true);
+        
+        // Run orchestrator
+        const result = await window.calculationOrchestrator.runVoltageDropAnalysis(projectData);
+        
+        if (result.success) {
+            // Store results
+            window.calculationResults = window.calculationResults || {};
+            window.calculationResults.voltageDrop = result.voltageDrop;
             
-            displayVoltageDropResults(results);
+            // Display results
+            displayVoltageDropResults(result.voltageDrop);
             
-            hideLoadingIndicator();
             showToast('Voltage drop calculation completed', 'success');
-        } catch (error) {
-            hideLoadingIndicator();
+        } else {
+            showToast('Calculation failed: ' + result.error, 'error');
+        }
+        
+    } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+        console.error('Voltage drop calculation error:', error);
+    } finally {
+        hideLoadingIndicator();
+        disableCalculationButtons(false);
             showToast('Calculation error: ' + error.message, 'error');
         }
     }, 100);
@@ -496,29 +519,180 @@ function displayVoltageDropResults(results) {
 }
 
 /**
+ * Handle comprehensive calculation
+ */
+async function handleComprehensiveCalculation() {
+    // Same as run all analysis
+    await handleRunAllAnalysis();
+}
+
+/**
+ * Gather project data from UI
+ */
+function gatherProjectData() {
+    // Gather from components global variable or UI inputs
+    if (typeof components !== 'undefined' && components) {
+        return {
+            voltage: parseFloat(document.getElementById('systemVoltage')?.value) || 480,
+            frequency: parseFloat(document.getElementById('systemFrequency')?.value) || 60,
+            standard: document.getElementById('calcStandard')?.value || 'ieee',
+            components: components
+        };
+    }
+    
+    // Fallback: create from UI
+    return {
+        voltage: parseFloat(document.getElementById('systemVoltage')?.value) || 480,
+        frequency: parseFloat(document.getElementById('systemFrequency')?.value) || 60,
+        standard: document.getElementById('calcStandard')?.value || 'ieee',
+        components: []
+    };
+}
+
+/**
+ * Disable/enable calculation buttons
+ */
+function disableCalculationButtons(disabled) {
+    const buttons = [
+        'runAllAnalysis',
+        'calculateShortCircuit',
+        'calculateArcFlash',
+        'calculateVoltageDrop',
+        'calculateComprehensive'
+    ];
+    
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.6' : '1';
+            btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        }
+    });
+}
+
+/**
  * Display comprehensive results
  */
 function displayComprehensiveResults(results) {
-    const container = document.getElementById('comprehensiveResults');
+    const container = document.getElementById('comprehensiveResults') || 
+                      document.getElementById('resultsContainer');
     if (!container) return;
     
     let html = `
         <div style="background: white; padding: 20px; border-radius: 12px; margin-top: 20px;">
-            <h3 style="color: #1e3a8a; margin-bottom: 15px;">Comprehensive Analysis Results</h3>
+            <h3 style="color: #1e3a8a; margin-bottom: 15px;">🔍 Comprehensive Analysis Results</h3>
     `;
     
-    if (results.shortCircuit) {
+    // Short Circuit Results
+    if (results.shortCircuit && results.shortCircuit.length > 0) {
         html += `
-            <h4>Short Circuit Analysis</h4>
-            <p>Maximum Fault Current: ${results.shortCircuit.maxFaultCurrent.toFixed(2)} A</p>
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #0c4a6e;">⚡ Short Circuit Analysis</h4>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <tr style="background: #f0f9ff; font-weight: 600;">
+                        <th style="padding: 8px; border: 1px solid #ddd;">Bus</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Voltage (V)</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">I<sub>3φ</sub> (kA)</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">X/R</th>
+                    </tr>
+        `;
+        
+        results.shortCircuit.forEach(scResult => {
+            html += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${scResult.busName}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${scResult.voltage.toFixed(0)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${scResult.faultCurrentsKA.threePhase.toFixed(2)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${scResult.impedance.xr.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        
+        html += `</table></div>`;
+    }
+    
+    // Motor Contribution
+    if (results.motorContribution) {
+        html += `
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #0c4a6e;">🔌 Motor Contribution</h4>
+                <p><strong>First Cycle:</strong> ${results.motorContribution.totals.firstCycleKA.toFixed(2)} kA</p>
+                <p><strong>Interrupting:</strong> ${results.motorContribution.totals.interruptingKA.toFixed(2)} kA</p>
+                <p><strong>Sustained:</strong> ${results.motorContribution.totals.sustainedKA.toFixed(2)} kA</p>
+            </div>
         `;
     }
     
-    if (results.systemSummary) {
+    // Voltage Drop Results
+    if (results.voltageDrop && results.voltageDrop.length > 0) {
         html += `
-            <h4>System Summary</h4>
-            <p>Buses: ${results.systemSummary.buses}</p>
-            <p>Transformers: ${results.systemSummary.transformers}</p>
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #0c4a6e;">📉 Voltage Drop Analysis</h4>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <tr style="background: #f0f9ff; font-weight: 600;">
+                        <th style="padding: 8px; border: 1px solid #ddd;">Bus</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Voltage Drop (%)</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Voltage at Bus (V)</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">NEC Compliance</th>
+                    </tr>
+        `;
+        
+        results.voltageDrop.forEach(vdResult => {
+            const compliance = vdResult.compliance?.nec ? '✓ Pass' : '✗ Fail';
+            html += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${vdResult.busName}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${vdResult.voltageDropPercent.toFixed(2)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${vdResult.voltageAtBus.toFixed(1)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${compliance}</td>
+                </tr>
+            `;
+        });
+        
+        html += `</table></div>`;
+    }
+    
+    // Arc Flash Results
+    if (results.arcFlash && results.arcFlash.length > 0) {
+        html += `
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #0c4a6e;">⚠️ Arc Flash Analysis</h4>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <tr style="background: #f0f9ff; font-weight: 600;">
+                        <th style="padding: 8px; border: 1px solid #ddd;">Bus</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Incident Energy (cal/cm²)</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">AFB (mm)</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">PPE Category</th>
+                    </tr>
+        `;
+        
+        results.arcFlash.forEach(afResult => {
+            if (afResult.applicable) {
+                const ppeCategory = afResult.ppe?.category || 'N/A';
+                html += `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${afResult.busName}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${(afResult.incidentEnergy || 0).toFixed(2)}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${(afResult.arcFlashBoundary || 0).toFixed(0)}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${ppeCategory}</td>
+                    </tr>
+                `;
+            }
+        });
+        
+        html += `</table></div>`;
+    }
+    
+    // Summary
+    if (results.summary) {
+        html += `
+            <div style="background: #f0f9ff; padding: 15px; border-radius: 8px;">
+                <h4 style="color: #0c4a6e;">📋 Summary</h4>
+                <p><strong>Max Fault Current:</strong> ${results.summary.maxFaultCurrent.toFixed(2)} kA</p>
+                <p><strong>Max Voltage Drop:</strong> ${results.summary.maxVoltageDropPercent.toFixed(2)}%</p>
+                <p><strong>Max Incident Energy:</strong> ${results.summary.maxIncidentEnergy.toFixed(2)} cal/cm²</p>
+            </div>
         `;
     }
     

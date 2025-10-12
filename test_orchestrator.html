@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculation Orchestrator Test</title>
+    
+    <!-- Load all modules in order -->
+    <script src="js/improved_validation.js"></script>
+    <script src="js/standard_specific_calcs.js"></script>
+    <script src="js/calculation_verification.js"></script>
+    <script src="js/arc_flash_calculation.js"></script>
+    <script src="js/ppe_selection.js"></script>
+    <script src="js/voltage_drop_calculations.js"></script>
+    <script src="js/bus_model.js"></script>
+    <script src="js/thevenin_equivalent.js"></script>
+    <script src="js/transformer_model.js"></script>
+    <script src="js/topology_manager.js"></script>
+    <script src="js/motor_contribution.js"></script>
+    <script src="js/calculation_orchestrator.js"></script>
+    <script src="js/power_system.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #10b981; font-weight: bold; }
+        .error { color: #ef4444; font-weight: bold; }
+        .info { color: #3b82f6; }
+        h2 { color: #1e3a8a; }
+        h3 { color: #0c4a6e; margin-top: 15px; }
+        pre {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Calculation Orchestrator Test Suite</h1>
+    
+    <div class="test-section">
+        <h2>Module Load Test</h2>
+        <div id="moduleLoadTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Orchestrator Initialization Test</h2>
+        <button onclick="testOrchestratorInit()">Run Test</button>
+        <div id="orchestratorInitTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Topology Manager Test</h2>
+        <button onclick="testTopologyManager()">Run Test</button>
+        <div id="topologyTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Motor Contribution Test</h2>
+        <button onclick="testMotorContribution()">Run Test</button>
+        <div id="motorTest"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Full Pipeline Test (Short Circuit)</h2>
+        <button onclick="testFullPipeline()">Run Test</button>
+        <div id="pipelineTest"></div>
+    </div>
+    
+    <script>
+        // Module load test
+        function testModuleLoad() {
+            let html = '<h3>Module Load Status:</h3>';
+            const modules = [
+                'Bus',
+                'BusSystem',
+                'TopologyManager',
+                'CalculationOrchestrator',
+                'calculateMotorContributionIEEE141',
+                'calculateArcFlashIEEE1584_2018',
+                'performVoltageDropAnalysis'
+            ];
+            
+            modules.forEach(moduleName => {
+                const exists = typeof window[moduleName] !== 'undefined';
+                html += `<p class="${exists ? 'success' : 'error'}">` +
+                       `${exists ? '✓' : '✗'} ${moduleName}</p>`;
+            });
+            
+            document.getElementById('moduleLoadTest').innerHTML = html;
+        }
+        
+        // Test orchestrator initialization
+        function testOrchestratorInit() {
+            let html = '<h3>Test Results:</h3>';
+            
+            try {
+                const orchestrator = new CalculationOrchestrator();
+                html += '<p class="success">✓ Orchestrator created successfully</p>';
+                html += `<p class="info">State initialized: ${JSON.stringify(Object.keys(orchestrator.state))}</p>`;
+                
+                // Test validation
+                const validationResult = orchestrator.validateInputs({
+                    voltage: 480,
+                    components: [
+                        { type: 'utility', voltage: 13800, faultCurrent: 25 }
+                    ]
+                });
+                
+                html += `<p class="${validationResult.valid ? 'success' : 'error'}">` +
+                       `${validationResult.valid ? '✓' : '✗'} Input validation: ${validationResult.valid}</p>`;
+                
+                if (!validationResult.valid) {
+                    html += `<p class="error">Errors: ${validationResult.errors.join(', ')}</p>`;
+                }
+                
+            } catch (error) {
+                html += `<p class="error">✗ Error: ${error.message}</p>`;
+                console.error('Orchestrator init error:', error);
+            }
+            
+            document.getElementById('orchestratorInitTest').innerHTML = html;
+        }
+        
+        // Test topology manager
+        function testTopologyManager() {
+            let html = '<h3>Test Results:</h3>';
+            
+            try {
+                const topoManager = new TopologyManager();
+                html += '<p class="success">✓ TopologyManager created</p>';
+                
+                // Add buses
+                const sourceBus = topoManager.addBus('Source', 13800, 'source');
+                const bus1 = topoManager.addBus('Bus 1', 480, 'load');
+                html += '<p class="success">✓ Buses added</p>';
+                
+                // Add component with topology
+                const transformer = {
+                    type: 'transformer',
+                    name: 'T1',
+                    power: 1.5,
+                    primaryV: 13.8,
+                    secondaryV: 0.48,
+                    impedance: 5.75
+                };
+                
+                topoManager.addComponent(transformer, sourceBus.id, bus1.id);
+                html += '<p class="success">✓ Component with fromBus/toBus added</p>';
+                
+                // Validate topology
+                const validation = topoManager.validateTopology();
+                html += `<p class="${validation.valid ? 'success' : 'error'}">` +
+                       `${validation.valid ? '✓' : '✗'} Topology validation: ${validation.valid}</p>`;
+                
+                if (validation.warnings.length > 0) {
+                    html += `<p class="info">Warnings: ${validation.warnings.join(', ')}</p>`;
+                }
+                
+                // Export topology
+                const exported = topoManager.exportTopology();
+                html += `<p class="info">Buses: ${exported.buses.length}, ` +
+                       `Connections: ${exported.connections.length}, ` +
+                       `Components: ${exported.components.length}</p>`;
+                
+            } catch (error) {
+                html += `<p class="error">✗ Error: ${error.message}</p>`;
+                console.error('Topology test error:', error);
+            }
+            
+            document.getElementById('topologyTest').innerHTML = html;
+        }
+        
+        // Test motor contribution
+        function testMotorContribution() {
+            let html = '<h3>Test Results:</h3>';
+            
+            try {
+                const motors = [
+                    {
+                        name: 'Motor 1',
+                        hp: 100,
+                        voltage: 480,
+                        motorType: 'induction'
+                    },
+                    {
+                        name: 'Motor 2',
+                        hp: 75,
+                        voltage: 480,
+                        motorType: 'induction'
+                    }
+                ];
+                
+                const result = calculateMotorContributionIEEE141(motors, null);
+                html += '<p class="success">✓ Motor contribution calculated</p>';
+                html += `<p class="info">Motor count: ${result.count}</p>`;
+                html += `<p class="info">First cycle: ${result.totals.firstCycleKA.toFixed(2)} kA</p>`;
+                html += `<p class="info">Interrupting: ${result.totals.interruptingKA.toFixed(2)} kA</p>`;
+                html += `<p class="info">Sustained: ${result.totals.sustainedKA.toFixed(2)} kA</p>`;
+                
+                // Individual motors
+                html += '<h4>Individual Motors:</h4>';
+                result.motors.forEach(motor => {
+                    html += `<p class="info">${motor.name}: FLA=${motor.fla.toFixed(1)}A, ` +
+                           `LRA=${motor.lra.toFixed(1)}A, X/R=${motor.impedance.xr.toFixed(1)}</p>`;
+                });
+                
+            } catch (error) {
+                html += `<p class="error">✗ Error: ${error.message}</p>`;
+                console.error('Motor contribution test error:', error);
+            }
+            
+            document.getElementById('motorTest').innerHTML = html;
+        }
+        
+        // Test full pipeline
+        async function testFullPipeline() {
+            let html = '<h3>Test Results:</h3>';
+            const container = document.getElementById('pipelineTest');
+            container.innerHTML = html + '<p class="info">Running...</p>';
+            
+            try {
+                const orchestrator = new CalculationOrchestrator();
+                
+                const projectData = {
+                    voltage: 480,
+                    frequency: 60,
+                    standard: 'IEEE',
+                    components: [
+                        {
+                            type: 'utility',
+                            name: 'Utility Source',
+                            voltage: 13800,
+                            faultCurrent: 25, // kA
+                            xr: 10
+                        },
+                        {
+                            type: 'transformer',
+                            name: 'Main Transformer',
+                            power: 1.5, // MVA
+                            primaryV: 13.8, // kV
+                            secondaryV: 0.48, // kV
+                            impedance: 5.75, // %
+                            rx: 0.1
+                        },
+                        {
+                            type: 'cable',
+                            name: 'Feeder Cable',
+                            length: 50, // meters
+                            resistance: 0.387, // Ω/km
+                            reactance: 0.08, // Ω/km
+                            voltage: 480
+                        }
+                    ]
+                };
+                
+                html += '<p class="success">✓ Project data prepared</p>';
+                html += `<p class="info">Components: ${projectData.components.length}</p>`;
+                
+                const result = await orchestrator.runShortCircuitAnalysis(projectData);
+                
+                if (result.success) {
+                    html += '<p class="success">✓ Short circuit analysis completed</p>';
+                    html += `<p class="info">Buses analyzed: ${result.shortCircuit.length}</p>`;
+                    
+                    result.shortCircuit.forEach((sc, index) => {
+                        html += `<h4>Bus ${index + 1}: ${sc.busName}</h4>`;
+                        html += `<p class="info">Voltage: ${sc.voltage.toFixed(0)} V</p>`;
+                        html += `<p class="info">3φ Fault Current: ${sc.faultCurrentsKA.threePhase.toFixed(2)} kA</p>`;
+                        html += `<p class="info">Impedance: R=${sc.impedance.r.toFixed(6)} Ω, ` +
+                               `X=${sc.impedance.x.toFixed(6)} Ω, X/R=${sc.impedance.xr.toFixed(2)}</p>`;
+                    });
+                    
+                    // Log
+                    html += '<h4>Calculation Log:</h4><pre>';
+                    result.log.forEach(entry => {
+                        html += `${entry.message}\n`;
+                    });
+                    html += '</pre>';
+                    
+                    // Assumptions
+                    if (result.assumptions && result.assumptions.length > 0) {
+                        html += '<h4>Assumptions:</h4>';
+                        result.assumptions.forEach(assumption => {
+                            html += `<p class="info">• [${assumption.category}] ${assumption.description}</p>`;
+                        });
+                    }
+                    
+                } else {
+                    html += `<p class="error">✗ Analysis failed: ${result.error}</p>`;
+                }
+                
+            } catch (error) {
+                html += `<p class="error">✗ Error: ${error.message}</p>`;
+                html += `<pre>${error.stack}</pre>`;
+                console.error('Pipeline test error:', error);
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Run module load test on page load
+        window.addEventListener('load', testModuleLoad);
+    </script>
+</body>
+</html>
