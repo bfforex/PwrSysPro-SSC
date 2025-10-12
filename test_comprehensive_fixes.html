@@ -76,13 +76,13 @@
         test('CalculationOrchestrator - Utility ISC validation', () => {
             const orchestrator = new CalculationOrchestrator();
             
-            // Test with implausibly high ISC
+            // Test with implausibly high ISC (exceeds 1000 kA threshold)
             const projectData = {
                 voltage: 440,
                 components: [
                     {
                         type: 'utility_isc',
-                        isc: 4373.87, // Wrong - likely means 4.374 kA but entered as A
+                        isc: 1500, // Exceeds 1000 kA threshold - likely unit error
                         voltage: 13.2,
                         xr: 10
                     }
@@ -194,6 +194,9 @@
         
         // Test 6: Transformer base impedance calculation
         test('Transformer - Base impedance calculation', () => {
+            // Tolerance for floating-point comparisons (Ω)
+            const IMPEDANCE_TOLERANCE = 0.0001;
+            
             assert(typeof Transformer !== 'undefined', 'Transformer class should be defined');
             
             const transformer = new Transformer({
@@ -211,15 +214,15 @@
             const expectedZbase = (440 * 440) / (1.0 * 1e6);
             const expectedZ = expectedZbase * (4.0 / 100);
             
-            assert(Math.abs(z.magnitude - expectedZ) < 0.0001, 
+            assert(Math.abs(z.magnitude - expectedZ) < IMPEDANCE_TOLERANCE, 
                    `Transformer impedance should be ${expectedZ.toFixed(6)} Ω, got ${z.magnitude.toFixed(6)} Ω`);
             
             // Check R and X from X/R ratio
             const expectedR = expectedZ / Math.sqrt(1 + 10*10);
             const expectedX = expectedR * 10;
             
-            assert(Math.abs(z.r - expectedR) < 0.0001, 'Resistance should match calculation');
-            assert(Math.abs(z.x - expectedX) < 0.0001, 'Reactance should match calculation');
+            assert(Math.abs(z.r - expectedR) < IMPEDANCE_TOLERANCE, 'Resistance should match calculation');
+            assert(Math.abs(z.x - expectedX) < IMPEDANCE_TOLERANCE, 'Reactance should match calculation');
         });
         
         // Display results

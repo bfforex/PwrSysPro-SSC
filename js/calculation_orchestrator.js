@@ -310,13 +310,15 @@ class CalculationOrchestrator {
                         // For MV systems (1-36 kV), typical ISC is 1-100 kA
                         // ISC > 1000 kA is implausible for most utility sources
                         if (comp.isc > 1000) {
-                            errors.push(`Utility ${index + 1}: ISC ${comp.isc} kA is implausibly high. Did you mean ${(comp.isc/1000).toFixed(3)} kA? Please verify units (should be kA, not A).`);
+                            // Suggest kA value with appropriate precision (1 decimal place)
+                            const suggestedKA = (comp.isc / 1000).toFixed(1);
+                            errors.push(`Utility ${index + 1}: ISC ${comp.isc.toFixed(0)} kA is implausibly high. Did you mean ${suggestedKA} kA? Please verify units (should be kA, not A).`);
                         }
                         
                         // Calculate implied MVA and check plausibility
                         const impliedMVA = Math.sqrt(3) * voltageKV * comp.isc;
                         if (impliedMVA > 10000) {
-                            warnings.push(`Utility ${index + 1}: Implied fault MVA is ${impliedMVA.toFixed(0)} MVA (ISC=${comp.isc} kA @ ${voltageKV} kV). This is very high. Typical: 100-1000 MVA for distribution.`);
+                            warnings.push(`Utility ${index + 1}: Implied fault MVA is ${impliedMVA.toFixed(0)} MVA (ISC=${comp.isc.toFixed(1)} kA @ ${voltageKV} kV). This is very high. Typical: 100-1000 MVA for distribution.`);
                         }
                     }
                 }
@@ -351,8 +353,8 @@ class CalculationOrchestrator {
             // Validate topology connectivity
             const validation = topologyManager.validateTopology();
             if (!validation.valid) {
-                const errorMsg = 'Topology validation failed: ' + validation.errors.join('; ');
-                this.logStep('ERROR: ' + errorMsg);
+                const errorMsg = `Topology validation failed: ${validation.errors.join('; ')}`;
+                this.logStep(`ERROR: ${errorMsg}`);
                 throw new Error(errorMsg);
             }
             
