@@ -1,0 +1,101 @@
+<!-- calculation_steps.html -->
+<!-- Template for detailed calculation steps display -->
+
+<div class="calculation-steps-container">
+    <h3 style="color: #1e3a8a; margin-bottom: 20px;">📊 Detailed Calculation Steps</h3>
+    
+    <div id="calculationStepsContent">
+        <!-- Steps will be dynamically inserted here -->
+    </div>
+    
+    <!-- Template for individual step (to be cloned by JavaScript) -->
+    <template id="calculationStepTemplate">
+        <div class="calculation-step">
+            <div class="step-header">
+                <span class="step-title"></span>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="step-content">
+                <div class="formula-display">
+                    <strong>Formula:</strong><br>
+                    <span class="step-formula"></span>
+                </div>
+                <div style="margin: 10px 0;">
+                    <strong>Calculation:</strong><br>
+                    <span class="step-calculation"></span>
+                </div>
+                <div class="result-display">
+                    <strong>Result:</strong> <span class="step-result"></span>
+                </div>
+                <div style="margin-top: 10px; color: #64748b; font-size: 14px;">
+                    <span class="step-notes"></span>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+
+<style>
+.calculation-steps-container {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin: 20px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+</style>
+
+<script>
+/**
+ * Function to populate calculation steps
+ * @param {Array} steps - Array of step objects with title, formula, calculation, result, notes
+ */
+function populateCalculationSteps(steps) {
+    const container = document.getElementById('calculationStepsContent');
+    const template = document.getElementById('calculationStepTemplate');
+    
+    if (!container || !template) return;
+    
+    // Clear existing steps
+    container.innerHTML = '';
+    
+    steps.forEach((step, index) => {
+        // Clone the template
+        const stepElement = template.content.cloneNode(true);
+        
+        // Fill in the data
+        stepElement.querySelector('.step-title').textContent = `Step ${index + 1}: ${step.title}`;
+        stepElement.querySelector('.step-formula').textContent = step.formula || 'N/A';
+        stepElement.querySelector('.step-calculation').textContent = step.calculation || 'N/A';
+        stepElement.querySelector('.step-result').textContent = step.result || 'N/A';
+        stepElement.querySelector('.step-notes').textContent = step.notes || '';
+        
+        // Add toggle functionality
+        const header = stepElement.querySelector('.step-header');
+        const content = stepElement.querySelector('.step-content');
+        const toggleIcon = stepElement.querySelector('.toggle-icon');
+        
+        header.addEventListener('click', function() {
+            const isVisible = content.style.display === 'block';
+            content.style.display = isVisible ? 'none' : 'block';
+            toggleIcon.textContent = isVisible ? '▼' : '▲';
+            header.classList.toggle('active');
+        });
+        
+        // Append to container
+        container.appendChild(stepElement);
+    });
+}
+
+// Example usage:
+// populateCalculationSteps([
+//     {
+//         title: 'Calculate Base Impedance',
+//         formula: 'Z_base = V²/S_base',
+//         calculation: 'Z_base = (480)² / 1,000,000 = 0.2304 Ω',
+//         result: '0.2304 Ω',
+//         notes: 'Base impedance on secondary side'
+//     },
+//     // ... more steps
+// ]);
+</script>

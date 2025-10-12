@@ -1,0 +1,182 @@
+<!-- comparison_table.html -->
+<!-- Template for standards comparison tables -->
+
+<div class="comparison-table-container">
+    <h3 style="color: #1e3a8a; margin-bottom: 20px;">⚖️ Standards Comparison</h3>
+    
+    <div id="comparisonTableContent">
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th style="text-align: center;">IEC 60909-0</th>
+                    <th style="text-align: center;">IEEE/ANSI</th>
+                    <th style="text-align: center;">Difference (%)</th>
+                    <th style="text-align: center;">Status</th>
+                </tr>
+            </thead>
+            <tbody id="comparisonTableBody">
+                <!-- Rows will be dynamically inserted here -->
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
+        <h4 style="color: #1e3a8a; margin-bottom: 10px;">Interpretation Guide</h4>
+        <ul style="margin: 0; padding-left: 20px; color: #64748b;">
+            <li><span style="color: #10b981;">✓ Good:</span> Difference less than 5%</li>
+            <li><span style="color: #f59e0b;">⚠ Warning:</span> Difference between 5% and 10%</li>
+            <li><span style="color: #dc2626;">✗ Critical:</span> Difference greater than 10%</li>
+        </ul>
+    </div>
+    
+    <!-- Summary Section -->
+    <div id="comparisonSummary" style="margin-top: 20px;">
+        <!-- Summary will be dynamically inserted here -->
+    </div>
+</div>
+
+<style>
+.comparison-table-container {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin: 20px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.comparison-table thead {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    color: white;
+}
+
+.comparison-table th {
+    padding: 12px;
+    font-weight: 600;
+}
+
+.comparison-table td {
+    padding: 10px 12px;
+    border: 1px solid #e1e8ed;
+}
+
+.comparison-table tbody tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+.comparison-table tbody tr:hover {
+    background: #e2e8f0;
+}
+
+.status-icon {
+    font-size: 18px;
+}
+</style>
+
+<script>
+/**
+ * Function to populate comparison table
+ * @param {Array} comparisonData - Array of comparison objects
+ */
+function populateComparisonTable(comparisonData) {
+    const tbody = document.getElementById('comparisonTableBody');
+    if (!tbody) return;
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    let totalDifference = 0;
+    let criticalCount = 0;
+    let warningCount = 0;
+    let goodCount = 0;
+    
+    comparisonData.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        
+        // Calculate difference percentage
+        const diff = row.iec !== 0 ? ((row.iec - row.ieee) / row.iec * 100) : 0;
+        const absDiff = Math.abs(diff);
+        totalDifference += absDiff;
+        
+        // Determine status
+        let status, statusIcon, statusColor;
+        if (absDiff < 5) {
+            status = 'Good';
+            statusIcon = '✓';
+            statusColor = '#10b981';
+            goodCount++;
+        } else if (absDiff < 10) {
+            status = 'Warning';
+            statusIcon = '⚠';
+            statusColor = '#f59e0b';
+            warningCount++;
+        } else {
+            status = 'Critical';
+            statusIcon = '✗';
+            statusColor = '#dc2626';
+            criticalCount++;
+        }
+        
+        // Build row HTML
+        tr.innerHTML = `
+            <td style="font-weight: 600;">${row.parameter}</td>
+            <td style="text-align: center;">${row.iec.toFixed(2)} ${row.unit}</td>
+            <td style="text-align: center;">${row.ieee.toFixed(2)} ${row.unit}</td>
+            <td style="text-align: center; color: ${statusColor}; font-weight: 600;">
+                ${diff.toFixed(2)}%
+            </td>
+            <td style="text-align: center;">
+                <span class="status-icon" style="color: ${statusColor};">${statusIcon}</span>
+                <span style="color: ${statusColor}; font-size: 12px;">${status}</span>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+    
+    // Display summary
+    const summaryDiv = document.getElementById('comparisonSummary');
+    if (summaryDiv) {
+        const avgDiff = totalDifference / comparisonData.length;
+        const overallStatus = avgDiff < 5 ? 'Excellent' : avgDiff < 10 ? 'Acceptable' : 'Review Required';
+        const overallColor = avgDiff < 5 ? '#10b981' : avgDiff < 10 ? '#f59e0b' : '#dc2626';
+        
+        summaryDiv.innerHTML = `
+            <div style="padding: 15px; background: ${overallColor}15; border-left: 4px solid ${overallColor}; border-radius: 8px;">
+                <h4 style="color: ${overallColor}; margin-bottom: 10px;">Overall Assessment: ${overallStatus}</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                    <div>
+                        <strong>Average Difference:</strong><br>
+                        <span style="font-size: 20px; color: ${overallColor};">${avgDiff.toFixed(2)}%</span>
+                    </div>
+                    <div>
+                        <strong>Good:</strong><br>
+                        <span style="font-size: 20px; color: #10b981;">${goodCount}</span>
+                    </div>
+                    <div>
+                        <strong>Warning:</strong><br>
+                        <span style="font-size: 20px; color: #f59e0b;">${warningCount}</span>
+                    </div>
+                    <div>
+                        <strong>Critical:</strong><br>
+                        <span style="font-size: 20px; color: #dc2626;">${criticalCount}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Example usage:
+// populateComparisonTable([
+//     { parameter: 'Symmetrical Current', iec: 25.5, ieee: 26.2, unit: 'kA' },
+//     { parameter: 'Peak Current', iec: 65.8, ieee: 68.4, unit: 'kA' },
+//     { parameter: 'X/R Ratio', iec: 15.2, ieee: 14.8, unit: '' },
+// ]);
+</script>

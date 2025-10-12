@@ -1,0 +1,264 @@
+<!-- bus_management_ui.html -->
+<!-- Template for bus management interface -->
+
+<div class="bus-management-container">
+    <h3 style="color: #1e3a8a; margin-bottom: 20px;">🔌 Bus Management & System Configuration</h3>
+    
+    <!-- Add Bus Section -->
+    <div class="bus-management-panel">
+        <h4 style="color: #2563eb; margin-bottom: 15px;">Add New Bus</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div class="form-group">
+                <label for="busName">Bus Name:</label>
+                <input type="text" id="busName" placeholder="e.g., Main Bus" 
+                       style="width: 100%; padding: 8px; border: 1px solid #e1e8ed; border-radius: 4px;">
+            </div>
+            <div class="form-group">
+                <label for="busVoltage">Voltage (V):</label>
+                <input type="number" id="busVoltage" placeholder="e.g., 400" 
+                       style="width: 100%; padding: 8px; border: 1px solid #e1e8ed; border-radius: 4px;">
+            </div>
+            <div class="form-group">
+                <label for="busType">Bus Type:</label>
+                <select id="busType" style="width: 100%; padding: 8px; border: 1px solid #e1e8ed; border-radius: 4px;">
+                    <option value="load">Load Bus</option>
+                    <option value="source">Source Bus</option>
+                    <option value="junction">Junction Bus</option>
+                </select>
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+                <button id="addBusBtn" onclick="handleAddBus()" 
+                        style="padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                    Add Bus
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Connect Buses Section -->
+    <div class="bus-management-panel" style="margin-top: 20px;">
+        <h4 style="color: #2563eb; margin-bottom: 15px;">Connect Buses</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+            <div class="form-group">
+                <label for="bus1Id">From Bus ID:</label>
+                <input type="number" id="bus1Id" placeholder="e.g., 1" 
+                       style="width: 100%; padding: 8px; border: 1px solid #e1e8ed; border-radius: 4px;">
+            </div>
+            <div class="form-group">
+                <label for="bus2Id">To Bus ID:</label>
+                <input type="number" id="bus2Id" placeholder="e.g., 2" 
+                       style="width: 100%; padding: 8px; border: 1px solid #e1e8ed; border-radius: 4px;">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+                <button id="connectBusesBtn" onclick="handleConnectBuses()" 
+                        style="padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                    Connect
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bus List Display -->
+    <div class="bus-management-panel" style="margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="color: #2563eb; margin: 0;">System Buses</h4>
+            <button onclick="refreshBusList()" 
+                    style="padding: 6px 12px; background: #64748b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                🔄 Refresh
+            </button>
+        </div>
+        <div id="busList" class="bus-list">
+            <!-- Bus items will be dynamically inserted here -->
+            <div style="text-align: center; color: #64748b; padding: 20px;">
+                No buses configured. Add a bus to get started.
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Diagram Display -->
+    <div class="bus-management-panel" style="margin-top: 20px;">
+        <h4 style="color: #2563eb; margin-bottom: 15px;">System Diagram</h4>
+        <div id="systemDiagramContainer" style="min-height: 300px; background: #f8fafc; border-radius: 8px; border: 1px solid #e1e8ed;">
+            <!-- System diagram will be rendered here -->
+            <div style="display: flex; align-items: center; justify-content: center; height: 300px; color: #64748b;">
+                System diagram will appear here once buses are added
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="bus-management-panel" style="margin-top: 20px;">
+        <h4 style="color: #2563eb; margin-bottom: 15px;">Quick Actions</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <button onclick="calculateAllBusFaults()" 
+                    style="padding: 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                ⚡ Calculate All Fault Currents
+            </button>
+            <button onclick="exportSystemConfiguration()" 
+                    style="padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                💾 Export Configuration
+            </button>
+            <button onclick="clearAllBuses()" 
+                    style="padding: 12px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                🗑️ Clear All Buses
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.bus-management-container {
+    background: #f8fafc;
+    padding: 25px;
+    border-radius: 12px;
+    margin: 20px 0;
+}
+
+.bus-management-panel {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 10px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #1e3a8a;
+    font-size: 14px;
+}
+
+.bus-list {
+    display: grid;
+    gap: 10px;
+}
+
+.bus-item {
+    border: 1px solid #e1e8ed;
+    padding: 12px;
+    border-radius: 8px;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.bus-item:hover {
+    background: #f8fafc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+button:active {
+    transform: translateY(0);
+}
+</style>
+
+<script>
+/**
+ * Refresh the bus list display
+ */
+function refreshBusList() {
+    updateBusDisplay();
+    updateSystemDiagram();
+}
+
+/**
+ * Calculate fault currents for all buses
+ */
+function calculateAllBusFaults() {
+    if (!window.globalBusSystem) {
+        showToast('Bus system not initialized', 'warning');
+        return;
+    }
+    
+    showLoadingIndicator('Calculating fault currents for all buses...');
+    
+    setTimeout(() => {
+        const results = window.globalBusSystem.calculateSystemFaultCurrents();
+        displayFaultCurrentResults(results);
+        hideLoadingIndicator();
+        showToast('Fault current calculations completed', 'success');
+    }, 500);
+}
+
+/**
+ * Export system configuration
+ */
+function exportSystemConfiguration() {
+    if (!window.globalBusSystem) {
+        showToast('Bus system not initialized', 'warning');
+        return;
+    }
+    
+    const config = window.globalBusSystem.exportConfiguration();
+    const json = JSON.stringify(config, null, 2);
+    
+    // Create download link
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bus_system_config.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    showToast('Configuration exported successfully', 'success');
+}
+
+/**
+ * Clear all buses
+ */
+function clearAllBuses() {
+    if (!window.globalBusSystem) return;
+    
+    if (confirm('Are you sure you want to clear all buses? This action cannot be undone.')) {
+        window.globalBusSystem = new BusSystem();
+        refreshBusList();
+        showToast('All buses cleared', 'success');
+    }
+}
+
+/**
+ * Display fault current results
+ */
+function displayFaultCurrentResults(results) {
+    const container = document.getElementById('faultCurrentResults');
+    if (!container) return;
+    
+    let html = '<div style="background: white; padding: 20px; border-radius: 12px; margin-top: 20px;">';
+    html += '<h3 style="color: #1e3a8a; margin-bottom: 15px;">Fault Current Results</h3>';
+    html += '<table class="comparison-table"><thead><tr>';
+    html += '<th>Bus ID</th><th>Bus Name</th><th>Voltage (V)</th><th>Fault Current (A)</th>';
+    html += '</tr></thead><tbody>';
+    
+    results.forEach(result => {
+        html += `<tr>
+            <td>${result.busId}</td>
+            <td>${result.busName}</td>
+            <td>${result.voltage.toFixed(0)}</td>
+            <td style="font-weight: 600; color: #3b82f6;">${result.faultCurrent.toFixed(2)}</td>
+        </tr>`;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// Initialize global bus system on page load
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof BusSystem !== 'undefined' && !window.globalBusSystem) {
+            window.globalBusSystem = new BusSystem();
+        }
+    });
+}
+</script>
