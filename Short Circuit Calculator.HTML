@@ -2714,6 +2714,11 @@
             cable: `
                 ${voltageZoneSelector}
                 <div class="form-group">
+                    <label>Operating Voltage (V):</label>
+                    <input type="number" id="compVoltage" placeholder="e.g., 440 or 13200" step="1">
+                    <div class="info-text">Voltage level at which cable operates (for impedance referral)</div>
+                </div>
+                <div class="form-group">
                     <label>Length (meters):</label>
                     <input type="number" id="compLength" placeholder="e.g., 100" step="0.1">
                 </div>
@@ -3197,6 +3202,11 @@
                 component.resistance = parseFloat(document.getElementById('compResistance').value);
                 component.reactance = parseFloat(document.getElementById('compReactance').value);
                 component.cableType = document.getElementById('compCableType').value;
+                // Capture cable voltage if specified
+                const cableVoltageEl = document.getElementById('compVoltage');
+                if (cableVoltageEl && cableVoltageEl.value) {
+                    component.voltage = parseFloat(cableVoltageEl.value);
+                }
             } else if (type === 'generator') {
                 component.power = parseFloat(document.getElementById('compPower').value);
                 component.reactance = parseFloat(document.getElementById('compReactance').value);
@@ -3287,7 +3297,8 @@
                 if (comp.type === 'transformer') {
                     details = `${comp.power} MVA, ${comp.impedance}% Z`;
                 } else if (comp.type === 'cable') {
-                    details = `${comp.length}m, R=${comp.resistance} Ω/km, X=${comp.reactance} Ω/km`;
+                    const voltageInfo = comp.voltage ? ` @ ${comp.voltage}V` : '';
+                    details = `${comp.length}m${voltageInfo}, R=${comp.resistance} Ω/km, X=${comp.reactance} Ω/km`;
                 } else if (comp.type === 'generator') {
                     details = `${comp.power} MVA, X"d=${comp.reactance}%`;
                 } else if (comp.type === 'motor') {
