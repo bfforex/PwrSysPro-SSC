@@ -268,20 +268,16 @@ class CalculationOrchestrator {
         // Validate component units
         projectData.components?.forEach((comp, index) => {
             if (comp.type === 'cable') {
-                // Validate length
+                // Validate length (covers negative and zero)
                 if (!comp.length || comp.length <= 0) {
-                    errors.push(`Cable ${index + 1}: Invalid length (must be positive)`);
-                }
-                if (comp.length < 0) {
-                    errors.push(`Cable ${index + 1}: Negative length ${comp.length}m is impossible`);
+                    errors.push(`Cable ${index + 1}: Invalid length (must be positive, got ${comp.length}m)`);
                 }
                 
                 // Validate impedance data
                 if (!comp.resistance || !comp.reactance) {
                     errors.push(`Cable ${index + 1}: Missing impedance data (Ω/km)`);
-                }
-                if (comp.resistance < 0 || comp.reactance < 0) {
-                    errors.push(`Cable ${index + 1}: Negative impedance values are impossible (R=${comp.resistance}, X=${comp.reactance})`);
+                } else if (comp.resistance <= 0 || comp.reactance <= 0) {
+                    errors.push(`Cable ${index + 1}: Invalid impedance values (R=${comp.resistance}, X=${comp.reactance} must be positive)`);
                 }
                 
                 // Validate voltage specification
@@ -309,18 +305,14 @@ class CalculationOrchestrator {
             }
             
             if (comp.type === 'transformer') {
+                // Validate power (covers negative and zero)
                 if (!comp.power || comp.power <= 0) {
-                    errors.push(`Transformer ${index + 1}: Invalid power rating (MVA)`);
-                }
-                if (comp.power < 0) {
-                    errors.push(`Transformer ${index + 1}: Negative power rating ${comp.power} MVA is impossible`);
+                    errors.push(`Transformer ${index + 1}: Invalid power rating (must be positive, got ${comp.power} MVA)`);
                 }
                 
+                // Validate impedance (covers negative and zero)
                 if (!comp.impedance || comp.impedance <= 0) {
-                    errors.push(`Transformer ${index + 1}: Invalid impedance (%Z)`);
-                }
-                if (comp.impedance < 0) {
-                    errors.push(`Transformer ${index + 1}: Negative impedance ${comp.impedance}% is impossible`);
+                    errors.push(`Transformer ${index + 1}: Invalid impedance (must be positive, got ${comp.impedance}%)`);
                 }
                 
                 // Typical transformer impedances: 3-7% for distribution transformers
@@ -344,16 +336,15 @@ class CalculationOrchestrator {
                     warnings.push(`Transformer ${index + 1}: Secondary voltage not specified or invalid`);
                 }
                 
-                // Check for kV vs V confusion
+                // Note: Transformer voltages in config are typically in kV, not V
+                // primaryV/secondaryV fields are usually specified as 13.2, 0.44, etc. (kV)
+                // The code converts these to V by multiplying by 1000 where needed
+                // Warn only for truly unusual values that suggest unit confusion
                 if (comp.primaryV && comp.primaryV > 1000) {
-                    warnings.push(`Transformer ${index + 1}: Primary voltage ${comp.primaryV} seems very high. Did you mean ${comp.primaryV / 1000} kV? Please use kV for transformer voltages.`);
+                    warnings.push(`Transformer ${index + 1}: Primary voltage ${comp.primaryV} kV seems very high. Typical range: 0.4-36 kV. Please verify.`);
                 }
-                if (comp.secondaryV && comp.secondaryV > 1000) {
-                    // This is actually correct for many transformers (e.g., 13.2kV/480V)
-                    // But warn if unusually high
-                    if (comp.secondaryV > 10000) {
-                        warnings.push(`Transformer ${index + 1}: Secondary voltage ${comp.secondaryV} seems very high. Please verify units (should be in kV).`);
-                    }
+                if (comp.secondaryV && comp.secondaryV > 100) {
+                    warnings.push(`Transformer ${index + 1}: Secondary voltage ${comp.secondaryV} kV seems very high. Typical range: 0.22-13.8 kV. Please verify.`);
                 }
             }
             

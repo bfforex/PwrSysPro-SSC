@@ -151,17 +151,27 @@ async function generateEnhancedPDF(results, projectData) {
                 yPos += 6;
                 doc.setFont('helvetica', 'normal');
                 
-                doc.text(`Symmetrical Current (Isym): ${scResult.results.isym_kA.toFixed(3)} kA`, 30, yPos);
+                // Use formatting utilities if available, otherwise fall back to toFixed
+                const formatCurrent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
+                    window.FormattingUtils.formatCurrent : (v => v.toFixed(3));
+                const formatImpedance = (typeof window !== 'undefined' && window.FormattingUtils) ? 
+                    window.FormattingUtils.formatImpedance : (v => v.toFixed(6));
+                const formatRatio = (typeof window !== 'undefined' && window.FormattingUtils) ? 
+                    window.FormattingUtils.formatRatio : (v => v.toFixed(2));
+                const formatTimeConstant = (typeof window !== 'undefined' && window.FormattingUtils) ? 
+                    window.FormattingUtils.formatTimeConstant : (v => (v * 1000).toFixed(2) + ' ms');
+                
+                doc.text(`Symmetrical Current (Isym): ${formatCurrent(scResult.results.isym_kA)} kA`, 30, yPos);
                 yPos += 5;
-                doc.text(`Asymmetrical Current (Iasym): ${scResult.results.iasym_kA.toFixed(3)} kA`, 30, yPos);
+                doc.text(`Asymmetrical Current (Iasym): ${formatCurrent(scResult.results.iasym_kA)} kA`, 30, yPos);
                 yPos += 5;
-                doc.text(`Total Impedance: ${scResult.results.z_total_ohm.toFixed(6)} \u03A9`, 30, yPos);
+                doc.text(`Total Impedance: ${formatImpedance(scResult.results.z_total_ohm)} \u03A9`, 30, yPos);
                 yPos += 5;
-                doc.text(`X/R Ratio: ${scResult.results.x_over_r.toFixed(2)}`, 30, yPos);
+                doc.text(`X/R Ratio: ${formatRatio(scResult.results.x_over_r)}`, 30, yPos);
                 yPos += 5;
                 doc.text(`Fault MVA: ${scResult.results.mva_sc.toFixed(2)} MVA`, 30, yPos);
                 yPos += 5;
-                doc.text(`Time Constant (\u03C4): ${(scResult.results.tau_s * 1000).toFixed(2)} ms`, 30, yPos);
+                doc.text(`Time Constant (\u03C4): ${formatTimeConstant(scResult.results.tau_s)}`, 30, yPos);
                 yPos += 5;
                 doc.text(`Asymmetrical Multiplier: ${scResult.results.multiplier.toFixed(3)}`, 30, yPos);
                 yPos += 8;
