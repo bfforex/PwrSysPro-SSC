@@ -4730,6 +4730,68 @@
                     headStyles: { fillColor: [239, 68, 68] }
                 });
                 
+                yPos = doc.lastAutoTable.finalY + 15;
+                
+                // Detailed Calculation Steps (NEW)
+                if (calculationResults.steps && calculationResults.steps.length > 0) {
+                    // Add new page for detailed calculations
+                    doc.addPage();
+                    yPos = 20;
+                    
+                    doc.setFontSize(16);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Detailed Calculation Trace', 20, yPos);
+                    yPos += 10;
+                    
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                    
+                    calculationResults.steps.forEach((step, index) => {
+                        // Check if we need a new page
+                        if (yPos > pageHeight - 30) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        // Step title
+                        doc.setFont(undefined, 'bold');
+                        doc.setFontSize(10);
+                        doc.text(`${index + 1}. ${step.title}`, 20, yPos);
+                        yPos += 6;
+                        
+                        // Step content - clean HTML and convert to plain text with Unicode
+                        doc.setFont(undefined, 'normal');
+                        doc.setFontSize(9);
+                        let content = step.content
+                            .replace(/<br\s*\/?>/gi, '\n')
+                            .replace(/<strong>/gi, '')
+                            .replace(/<\/strong>/gi, '')
+                            .replace(/&times;/gi, '×')
+                            .replace(/&divide;/gi, '÷')
+                            .replace(/&plusmn;/gi, '±')
+                            .replace(/&deg;/gi, '°')
+                            .replace(/&Omega;/gi, 'Ω')
+                            .replace(/&micro;/gi, 'μ')
+                            .replace(/&sup2;/gi, '²')
+                            .replace(/&sup3;/gi, '³')
+                            .replace(/&radic;/gi, '√')
+                            .replace(/<[^>]*>/g, ''); // Remove remaining HTML tags
+                        
+                        // Split content into lines and handle wrapping
+                        const lines = doc.splitTextToSize(content, 170);
+                        lines.forEach(line => {
+                            if (yPos > pageHeight - 15) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            doc.text(line, 25, yPos);
+                            yPos += 5;
+                        });
+                        
+                        yPos += 3; // Extra spacing between steps
+                    });
+                }
+                
                 // Footer
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
