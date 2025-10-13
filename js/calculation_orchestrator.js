@@ -268,11 +268,27 @@ class CalculationOrchestrator {
         // Validate component units
         projectData.components?.forEach((comp, index) => {
             if (comp.type === 'cable') {
+                // Validate length (covers negative and zero)
                 if (!comp.length || comp.length <= 0) {
-                    errors.push(`Cable ${index + 1}: Invalid length`);
+                    errors.push(`Cable ${index + 1}: Invalid length (must be positive, got ${comp.length}m)`);
                 }
+                
+                // Validate impedance data
                 if (!comp.resistance || !comp.reactance) {
                     errors.push(`Cable ${index + 1}: Missing impedance data (Ω/km)`);
+                } else if (comp.resistance <= 0 || comp.reactance <= 0) {
+                    errors.push(`Cable ${index + 1}: Invalid impedance values (R=${comp.resistance}, X=${comp.reactance} must be positive)`);
+                }
+                
+                // Validate voltage specification
+                if (!comp.voltage) {
+                    warnings.push(`Cable ${index + 1}: Voltage level not specified. Will use system voltage. Please specify voltage (in V, not kV) for accurate referral.`);
+                    this.addAssumption('Cable Validation', `Cable ${index + 1} voltage not specified - using system voltage for impedance referral`);
+                }
+                
+                // Check for kV vs V confusion
+                if (comp.voltage && comp.voltage < 100) {
+                    warnings.push(`Cable ${index + 1}: Voltage ${comp.voltage}V seems very low. Did you mean ${comp.voltage * 1000}V (i.e., ${comp.voltage} kV)? Please use V, not kV.`);
                 }
                 
                 // Validate cable reactance - typical LV cable reactance is 0.03-0.1 Ω/km
@@ -289,11 +305,46 @@ class CalculationOrchestrator {
             }
             
             if (comp.type === 'transformer') {
+                // Validate power (covers negative and zero)
                 if (!comp.power || comp.power <= 0) {
-                    errors.push(`Transformer ${index + 1}: Invalid power rating (MVA)`);
+                    errors.push(`Transformer ${index + 1}: Invalid power rating (must be positive, got ${comp.power} MVA)`);
                 }
+                
+                // Validate impedance (covers negative and zero)
                 if (!comp.impedance || comp.impedance <= 0) {
-                    errors.push(`Transformer ${index + 1}: Invalid impedance (%Z)`);
+                    errors.push(`Transformer ${index + 1}: Invalid impedance (must be positive, got ${comp.impedance}%)`);
+                }
+                
+                // Typical transformer impedances: 3-7% for distribution transformers
+                if (comp.impedance > 15) {
+                    warnings.push(`Transformer ${index + 1}: Impedance ${comp.impedance}% is unusually high (typical: 3-7%). Please verify.`);
+                }
+                if (comp.impedance < 2) {
+                    warnings.push(`Transformer ${index + 1}: Impedance ${comp.impedance}% is unusually low (typical: 3-7%). Please verify.`);
+                }
+                
+                // Check for missing R/X ratio
+                if (!comp.rx && comp.rx !== 0) {
+                    this.addAssumption('Transformer', `Transformer ${index + 1} R/X ratio not specified - using IEEE 141 typical value based on ${comp.power} MVA rating`);
+                }
+                
+                // Validate voltage specifications
+                if (!comp.primaryV || comp.primaryV <= 0) {
+                    warnings.push(`Transformer ${index + 1}: Primary voltage not specified or invalid`);
+                }
+                if (!comp.secondaryV || comp.secondaryV <= 0) {
+                    warnings.push(`Transformer ${index + 1}: Secondary voltage not specified or invalid`);
+                }
+                
+                // Note: Transformer voltages in config are typically in kV, not V
+                // primaryV/secondaryV fields are usually specified as 13.2, 0.44, etc. (kV)
+                // The code converts these to V by multiplying by 1000 where needed
+                // Warn only for truly unusual values that suggest unit confusion
+                if (comp.primaryV && comp.primaryV > 1000) {
+                    warnings.push(`Transformer ${index + 1}: Primary voltage ${comp.primaryV} kV seems very high. Typical range: 0.4-36 kV. Please verify.`);
+                }
+                if (comp.secondaryV && comp.secondaryV > 100) {
+                    warnings.push(`Transformer ${index + 1}: Secondary voltage ${comp.secondaryV} kV seems very high. Typical range: 0.22-13.8 kV. Please verify.`);
                 }
             }
             
@@ -449,8 +500,24 @@ class CalculationOrchestrator {
             
             // X/R ratio and asymmetric component
             const xr = th.xr || 10;
+            
+            // First-cycle RMS asymmetrical current multiplier
+            // Per ANSI/IEEE C37.010 and IEEE 141
+            // Formula: Multiplier = √(1 + 2e^(-4π/(X/R)))
+            // This accounts for DC offset component during first cycle
             const asymFactor = Math.sqrt(1 + 2 * Math.pow(Math.E, -4 * Math.PI / xr));
+            
+            // Peak current (instantaneous maximum)
+            // Peak = √2 × Asymmetrical RMS
             const iPeak = i3phase * Math.sqrt(2) * asymFactor;
+            
+            // Calculate fault MVA
+            const faultMVA = (Math.sqrt(3) * voltage * i3phase) / 1e6;
+            
+            // Calculate time constant τ = L/(ωR) = X/(2πfR)
+            const frequency = this.projectData.frequency || 60; // Hz
+            const omega = 2 * Math.PI * frequency;
+            const tau_s = th.x / (omega * th.r); // seconds
             
             results.push({
                 busId: bus.id,
@@ -479,6 +546,17 @@ class CalculationOrchestrator {
                     symmetrical: i3phase / 1000,
                     asymmetrical: (i3phase * asymFactor) / 1000,
                     peak: iPeak / 1000
+                },
+                // Enhanced results per problem statement requirements
+                results: {
+                    isym_kA: i3phase / 1000,
+                    iasym_kA: (i3phase * asymFactor) / 1000,
+                    z_total_ohm: th.z,
+                    x_over_r: xr,
+                    mva_sc: faultMVA,
+                    tau_s: tau_s,
+                    multiplier: asymFactor,
+                    computed_at: new Date().toISOString()
                 }
             });
         });
