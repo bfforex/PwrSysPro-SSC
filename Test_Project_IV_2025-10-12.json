@@ -29,11 +29,12 @@
       "type": "transformer",
       "name": "Main Transformer",
       "power": 1,
+      "powerUnit": "MVA",
       "impedance": 4,
       "primaryV": 13.2,
       "secondaryV": 0.44,
       "rx": null,
-      "notes": "1 MVA, 4%Z, 13.2kV/440V transformer, R/X will use IEEE 141 default"
+      "notes": "1 MVA, 4%Z, 13.2kV/440V transformer, R/X will use IEEE 141 default, powerUnit explicitly specified"
     },
     {
       "type": "cable",

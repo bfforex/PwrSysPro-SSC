@@ -3796,7 +3796,9 @@
                 } else if (comp.type === 'utility_mva') {
                     // Calculate impedance from fault MVA
                     const utilityVoltage = comp.voltage * 1000; // Convert kV to V
-                    const isc = safeDivide(comp.mva * 1000, safeSqrt(3) * comp.voltage, 0.001);
+                    // ISC in kA: ISC = MVA_sc / (√3 × V_kV)
+                    const isc = safeDivide(comp.mva, safeSqrt(3) * comp.voltage, 0.001);
+                    // Zsource in Ω: Z = V_line / (√3 × ISC_A) = V_line / (√3 × ISC_kA × 1000)
                     const z = safeDivide(utilityVoltage, safeSqrt(3) * isc * 1000, 0.001);
                     const x = safeDivide(z * comp.xr, safeSqrt(1 + comp.xr * comp.xr, 1), 0);
                     const r = safeDivide(z, safeSqrt(1 + comp.xr * comp.xr, 1), 0);

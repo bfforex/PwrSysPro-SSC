@@ -4,7 +4,17 @@
 
 **Professional Standards-Compliant Power System Analysis Tool**
 
-*Last Updated: 2025-10-12*
+*Last Updated: 2025-10-15*
+
+## ⚡ Recent Production Fixes (2025-10-15)
+
+**Critical fixes implemented for calculation accuracy:**
+
+1. **Utility A/kA Mix-up Fixed** - Corrected 1000x error in utility source impedance calculation
+2. **Transformer Power Unit Enforcement** - Added explicit `powerUnit` field (kVA/MVA) with migration logic
+3. **Enhanced Guardrails** - Added validation for implausibly small utility impedances
+
+See [PRODUCTION_FIXES_DOCUMENTATION.md](PRODUCTION_FIXES_DOCUMENTATION.md) for complete details.
 
 ## Overview
 
@@ -33,7 +43,8 @@ PowerSys Pro is a comprehensive web-based application for power system short cir
 ### Power System Modeling
 - Bus modeling with Thevenin equivalent calculations
 - Multi-voltage level system support
-- Transformer modeling with impedance referencing
+- Transformer modeling with impedance referencing and explicit power unit handling (kVA/MVA)
+- Intelligent migration for legacy data with automatic unit detection
 - Interactive system diagram visualization
 
 ### User Experience

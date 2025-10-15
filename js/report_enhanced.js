@@ -24,6 +24,19 @@ async function generateEnhancedPDF(results, projectData) {
     // jsPDF 2.x has better Unicode support with standard fonts
     doc.setFont('helvetica');
     
+    // Initialize formatting utilities once (use FormattingUtils if available, otherwise fallbacks)
+    const hasFormattingUtils = typeof window !== 'undefined' && window.FormattingUtils;
+    const formatCurrent = hasFormattingUtils ? 
+        window.FormattingUtils.formatCurrent : (v => v.toFixed(2));
+    const formatImpedance = hasFormattingUtils ? 
+        window.FormattingUtils.formatImpedance : (v => v.toFixed(6));
+    const formatRatio = hasFormattingUtils ? 
+        window.FormattingUtils.formatRatio : (v => v.toFixed(2));
+    const formatPercent = hasFormattingUtils ? 
+        window.FormattingUtils.formatPercent : (v => v.toFixed(1));
+    const formatTimeConstant = hasFormattingUtils ? 
+        window.FormattingUtils.formatTimeConstant : (v => (v * 1000).toFixed(2) + ' ms');
+    
     let yPos = 20;
     const pageHeight = doc.internal.pageSize.height;
     const pageWidth = doc.internal.pageSize.width;
@@ -88,9 +101,9 @@ async function generateEnhancedPDF(results, projectData) {
         
         const summaryData = [
             ['Parameter', 'Value', 'Unit'],
-            ['Max Fault Current (3\u03C6)', results.summary.maxFaultCurrent.toFixed(2), 'kA'],
-            ['Min Fault Current', results.summary.minFaultCurrent.toFixed(2), 'kA'],
-            ['Max Voltage Drop', results.summary.maxVoltageDropPercent.toFixed(2), '%'],
+            ['Max Fault Current (3\u03C6)', formatCurrent(results.summary.maxFaultCurrent), 'kA'],
+            ['Min Fault Current', formatCurrent(results.summary.minFaultCurrent), 'kA'],
+            ['Max Voltage Drop', formatPercent(results.summary.maxVoltageDropPercent), '%'],
             ['Max Incident Energy', results.summary.maxIncidentEnergy.toFixed(2), 'cal/cm\u00B2']
         ];
         
@@ -119,17 +132,17 @@ async function generateEnhancedPDF(results, projectData) {
             
             const scData = [
                 ['Fault Type', 'Current (kA)', 'Current (A)'],
-                ['Three-Phase (3\u03C6)', scResult.faultCurrentsKA.threePhase.toFixed(2), 
+                ['Three-Phase (3\u03C6)', formatCurrent(scResult.faultCurrentsKA.threePhase), 
                  scResult.faultCurrents.threePhase.toFixed(0)],
-                ['Line-to-Ground (L-G)', scResult.faultCurrentsKA.lineToGround.toFixed(2), 
+                ['Line-to-Ground (L-G)', formatCurrent(scResult.faultCurrentsKA.lineToGround), 
                  scResult.faultCurrents.lineToGround.toFixed(0)],
-                ['Line-to-Line (L-L)', scResult.faultCurrentsKA.lineToLine.toFixed(2), 
+                ['Line-to-Line (L-L)', formatCurrent(scResult.faultCurrentsKA.lineToLine), 
                  scResult.faultCurrents.lineToLine.toFixed(0)],
-                ['Double L-G (2L-G)', scResult.faultCurrentsKA.doubleLineToGround.toFixed(2), 
+                ['Double L-G (2L-G)', formatCurrent(scResult.faultCurrentsKA.doubleLineToGround), 
                  scResult.faultCurrents.doubleLineToGround.toFixed(0)],
-                ['Asymmetrical', scResult.faultCurrentsKA.asymmetrical.toFixed(2), 
+                ['Asymmetrical', formatCurrent(scResult.faultCurrentsKA.asymmetrical), 
                  scResult.faultCurrents.asymmetrical.toFixed(0)],
-                ['Peak', scResult.faultCurrentsKA.peak.toFixed(2), 
+                ['Peak', formatCurrent(scResult.faultCurrentsKA.peak), 
                  scResult.faultCurrents.peak.toFixed(0)]
             ];
             
@@ -150,16 +163,6 @@ async function generateEnhancedPDF(results, projectData) {
                 doc.text('Enhanced Results:', 25, yPos);
                 yPos += 6;
                 doc.setFont('helvetica', 'normal');
-                
-                // Use formatting utilities if available, otherwise fall back to toFixed
-                const formatCurrent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatCurrent : (v => v.toFixed(3));
-                const formatImpedance = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatImpedance : (v => v.toFixed(6));
-                const formatRatio = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatRatio : (v => v.toFixed(2));
-                const formatTimeConstant = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatTimeConstant : (v => (v * 1000).toFixed(2) + ' ms');
                 
                 doc.text(`Symmetrical Current (Isym): ${formatCurrent(scResult.results.isym_kA)} kA`, 30, yPos);
                 yPos += 5;

@@ -1,0 +1,61 @@
+{
+  "projectName": "LV 150 kVA Example",
+  "description": "Example LV study demonstrating powerUnit usage - 150 kVA @ 240V with 100 MVA utility source",
+  "date": "2025-10-15",
+  "voltage": 240,
+  "frequency": 60,
+  "standard": "ieee",
+  "components": [
+    {
+      "type": "utility",
+      "name": "Utility Source",
+      "shortCircuitMVA": 100,
+      "voltage": 13200,
+      "xr": 10,
+      "notes": "100 MVA short circuit MVA at 13.2 kV"
+    },
+    {
+      "type": "cable",
+      "name": "HV Cable",
+      "length": 100,
+      "resistance": 0.153,
+      "reactance": 0.171,
+      "voltage": 13200,
+      "operatingTemp": 75,
+      "cableType": "single",
+      "notes": "100m HV cable at 13.2 kV"
+    },
+    {
+      "type": "transformer",
+      "name": "150 kVA Distribution Transformer",
+      "power": 150,
+      "powerUnit": "kVA",
+      "impedance": 4.0,
+      "primaryV": 13.2,
+      "secondaryV": 0.24,
+      "rx": null,
+      "notes": "150 kVA transformer - powerUnit explicitly set to kVA. Without explicit unit, system would default to kVA based on 240V secondary (≤1kV)"
+    },
+    {
+      "type": "cable",
+      "name": "LV Service Cable",
+      "length": 30,
+      "resistance": 0.640,
+      "reactance": 0.077,
+      "voltage": 240,
+      "operatingTemp": 75,
+      "cableType": "multi",
+      "notes": "30m LV service cable, 4/0 AWG copper"
+    }
+  ],
+  "expectedResults": {
+    "isym_kA": 8.5,
+    "notes": "Expected fault current ~8-10 kA at end of 30m service cable. With powerUnit=kVA, transformer impedance is correctly ~0.0154 Ω. If mistakenly treated as 150 MVA, Z would be 1000x smaller and ISC would be ~8500 kA (implausible)."
+  },
+  "migrationNotes": {
+    "powerUnit_usage": "This example demonstrates proper powerUnit usage for LV transformers",
+    "without_powerUnit": "If powerUnit field is omitted, system defaults to 'kVA' for secondaryV ≤ 1kV",
+    "warning": "Without powerUnit field, a console warning will be logged indicating the assumed unit",
+    "migration_path": "Add 'powerUnit': 'kVA' or 'MVA' to all transformer definitions to eliminate ambiguity"
+  }
+}
