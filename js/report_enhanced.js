@@ -86,11 +86,17 @@ async function generateEnhancedPDF(results, projectData) {
     if (results.summary) {
         addSectionHeader('Key Results Summary');
         
+        // Use formatting utilities for consistent precision
+        const formatCurrent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
+            window.FormattingUtils.formatCurrent : (v => v.toFixed(2));
+        const formatPercent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
+            window.FormattingUtils.formatPercent : (v => v.toFixed(2));
+        
         const summaryData = [
             ['Parameter', 'Value', 'Unit'],
-            ['Max Fault Current (3\u03C6)', results.summary.maxFaultCurrent.toFixed(2), 'kA'],
-            ['Min Fault Current', results.summary.minFaultCurrent.toFixed(2), 'kA'],
-            ['Max Voltage Drop', results.summary.maxVoltageDropPercent.toFixed(2), '%'],
+            ['Max Fault Current (3\u03C6)', formatCurrent(results.summary.maxFaultCurrent), 'kA'],
+            ['Min Fault Current', formatCurrent(results.summary.minFaultCurrent), 'kA'],
+            ['Max Voltage Drop', formatPercent(results.summary.maxVoltageDropPercent), '%'],
             ['Max Incident Energy', results.summary.maxIncidentEnergy.toFixed(2), 'cal/cm\u00B2']
         ];
         
@@ -117,19 +123,23 @@ async function generateEnhancedPDF(results, projectData) {
             yPos += 6;
             doc.setFont('helvetica', 'normal');
             
+            // Use formatting utilities for consistent precision
+            const formatCurrent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
+                window.FormattingUtils.formatCurrent : (v => v.toFixed(2));
+            
             const scData = [
                 ['Fault Type', 'Current (kA)', 'Current (A)'],
-                ['Three-Phase (3\u03C6)', scResult.faultCurrentsKA.threePhase.toFixed(2), 
+                ['Three-Phase (3\u03C6)', formatCurrent(scResult.faultCurrentsKA.threePhase), 
                  scResult.faultCurrents.threePhase.toFixed(0)],
-                ['Line-to-Ground (L-G)', scResult.faultCurrentsKA.lineToGround.toFixed(2), 
+                ['Line-to-Ground (L-G)', formatCurrent(scResult.faultCurrentsKA.lineToGround), 
                  scResult.faultCurrents.lineToGround.toFixed(0)],
-                ['Line-to-Line (L-L)', scResult.faultCurrentsKA.lineToLine.toFixed(2), 
+                ['Line-to-Line (L-L)', formatCurrent(scResult.faultCurrentsKA.lineToLine), 
                  scResult.faultCurrents.lineToLine.toFixed(0)],
-                ['Double L-G (2L-G)', scResult.faultCurrentsKA.doubleLineToGround.toFixed(2), 
+                ['Double L-G (2L-G)', formatCurrent(scResult.faultCurrentsKA.doubleLineToGround), 
                  scResult.faultCurrents.doubleLineToGround.toFixed(0)],
-                ['Asymmetrical', scResult.faultCurrentsKA.asymmetrical.toFixed(2), 
+                ['Asymmetrical', formatCurrent(scResult.faultCurrentsKA.asymmetrical), 
                  scResult.faultCurrents.asymmetrical.toFixed(0)],
-                ['Peak', scResult.faultCurrentsKA.peak.toFixed(2), 
+                ['Peak', formatCurrent(scResult.faultCurrentsKA.peak), 
                  scResult.faultCurrents.peak.toFixed(0)]
             ];
             
