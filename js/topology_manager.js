@@ -186,6 +186,35 @@ class TopologyManager {
     }
     
     /**
+     * Get transformer power in MVA with unit enforcement
+     * Applies migration heuristic if powerUnit not specified
+     */
+    getTransformerPowerMVA(transformer) {
+        // If powerUnit is explicitly specified, use it
+        if (transformer.powerUnit === 'kVA') {
+            return transformer.power / 1000;
+        } else if (transformer.powerUnit === 'MVA') {
+            return transformer.power;
+        }
+        
+        // Migration heuristic: default based on secondary voltage
+        const secondaryV = (transformer.secondaryV || 0.48) * 1000; // Convert to V
+        const powerUnit = (secondaryV <= 1000) ? 'kVA' : 'MVA';
+        
+        // Log warning if defaulting
+        if (!transformer.hasOwnProperty('_powerUnitWarningLogged')) {
+            const powerValue = transformer.power || 1;
+            console.warn(`Transformer "${transformer.name || 'Unnamed'}" missing powerUnit field. ` +
+                `Defaulting to ${powerUnit} based on secondary voltage ${secondaryV}V. ` +
+                `Interpreted as ${powerUnit === 'kVA' ? powerValue + ' kVA' : powerValue + ' MVA'}. ` +
+                `Add "powerUnit": "${powerUnit}" to override.`);
+            transformer._powerUnitWarningLogged = true;
+        }
+        
+        return powerUnit === 'kVA' ? (transformer.power || 1) / 1000 : (transformer.power || 1);
+    }
+    
+    /**
      * Convert to BusSystem for compatibility
      */
     toBusSystem() {
@@ -229,6 +258,14 @@ class TopologyManager {
                         zSource = (voltage * voltage) / (comp.shortCircuitMVA * 1e6);
                     }
                     
+                    // Guardrail: detect implausibly small Zsource at HV
+                    // For common distribution voltages (4-35 kV), Zsource should typically be > 1e-6 Ω
+                    if (zSource > 0 && zSource < 1e-6 && voltage >= 4000 && voltage <= 35000) {
+                        console.warn(`⚠️ Utility source "${comp.name || 'Unnamed'}" has very small impedance ` +
+                            `(${zSource.toExponential(3)} Ω at ${voltage}V). ` +
+                            `This may indicate unit confusion. Check if fault current or MVA values are correct.`);
+                    }
+                    
                     // Split into R and X using X/R ratio
                     const xr = comp.xr || 10;
                     const rSource = zSource / Math.sqrt(1 + xr * xr);
@@ -241,7 +278,7 @@ class TopologyManager {
                 if (comp.type === 'transformer') {
                     // Transformer impedance calculated on secondary side
                     const secondaryV = (comp.secondaryV || 0.48) * 1000;
-                    const powerMVA = comp.power || 1;
+                    const powerMVA = this.getTransformerPowerMVA(comp);
                     const zBase = (secondaryV * secondaryV) / (powerMVA * 1e6);
                     const zPU = (comp.impedance || 5.75) / 100;
                     const zOhms = zPU * zBase;
@@ -280,7 +317,7 @@ class TopologyManager {
                     };
                 } else if (conn.component.type === 'transformer') {
                     const secondaryV = (conn.component.secondaryV || 0.48) * 1000;
-                    const powerMVA = conn.component.power || 1;
+                    const powerMVA = this.getTransformerPowerMVA(conn.component);
                     const zBase = (secondaryV * secondaryV) / (powerMVA * 1e6);
                     const zPU = (conn.component.impedance || 5.75) / 100;
                     const zOhms = zPU * zBase;

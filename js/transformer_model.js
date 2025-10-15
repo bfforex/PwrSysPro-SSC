@@ -11,7 +11,35 @@ class Transformer {
     constructor(config) {
         this.id = config.id || Date.now();
         this.name = config.name || 'Transformer';
-        this.powerMVA = config.powerMVA || 1.0;
+        
+        // Power rating with unit enforcement
+        // Migration heuristic: default to kVA if secondaryV ≤ 1kV, else MVA
+        this.powerUnit = config.powerUnit; // 'kVA' or 'MVA'
+        
+        // Backward compatibility: if powerMVA is specified directly, use it
+        if (config.powerMVA !== undefined && !config.power) {
+            this.powerValue = config.powerMVA;
+            if (!this.powerUnit) {
+                this.powerUnit = 'MVA';
+                this.defaultedPowerUnit = false;
+            }
+        } else {
+            this.powerValue = config.power || config.powerMVA || 1.0;
+        }
+        
+        // Apply migration heuristic if powerUnit not specified
+        if (!this.powerUnit) {
+            const secondaryV = config.secondaryVoltage || config.secondaryV || 480;
+            // Check if secondary voltage is ≤ 1kV (1000V)
+            this.powerUnit = (secondaryV <= 1000) ? 'kVA' : 'MVA';
+            this.defaultedPowerUnit = true; // Flag for logging/warnings
+        } else {
+            this.defaultedPowerUnit = false;
+        }
+        
+        // Convert to MVA for internal calculations
+        this.powerMVA = this.powerUnit === 'kVA' ? this.powerValue / 1000 : this.powerValue;
+        
         this.primaryVoltage = config.primaryVoltage || 13800;
         this.secondaryVoltage = config.secondaryVoltage || 480;
         this.impedancePercent = config.impedancePercent || 5.75;
