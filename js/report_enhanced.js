@@ -24,6 +24,19 @@ async function generateEnhancedPDF(results, projectData) {
     // jsPDF 2.x has better Unicode support with standard fonts
     doc.setFont('helvetica');
     
+    // Initialize formatting utilities once (use FormattingUtils if available, otherwise fallbacks)
+    const hasFormattingUtils = typeof window !== 'undefined' && window.FormattingUtils;
+    const formatCurrent = hasFormattingUtils ? 
+        window.FormattingUtils.formatCurrent : (v => v.toFixed(2));
+    const formatImpedance = hasFormattingUtils ? 
+        window.FormattingUtils.formatImpedance : (v => v.toFixed(6));
+    const formatRatio = hasFormattingUtils ? 
+        window.FormattingUtils.formatRatio : (v => v.toFixed(2));
+    const formatPercent = hasFormattingUtils ? 
+        window.FormattingUtils.formatPercent : (v => v.toFixed(1));
+    const formatTimeConstant = hasFormattingUtils ? 
+        window.FormattingUtils.formatTimeConstant : (v => (v * 1000).toFixed(2) + ' ms');
+    
     let yPos = 20;
     const pageHeight = doc.internal.pageSize.height;
     const pageWidth = doc.internal.pageSize.width;
@@ -86,12 +99,6 @@ async function generateEnhancedPDF(results, projectData) {
     if (results.summary) {
         addSectionHeader('Key Results Summary');
         
-        // Use formatting utilities for consistent precision
-        const formatCurrent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-            window.FormattingUtils.formatCurrent : (v => v.toFixed(2));
-        const formatPercent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-            window.FormattingUtils.formatPercent : (v => v.toFixed(2));
-        
         const summaryData = [
             ['Parameter', 'Value', 'Unit'],
             ['Max Fault Current (3\u03C6)', formatCurrent(results.summary.maxFaultCurrent), 'kA'],
@@ -122,10 +129,6 @@ async function generateEnhancedPDF(results, projectData) {
             doc.text(`Bus: ${scResult.busName} (${scResult.voltage.toFixed(0)} V)`, 20, yPos);
             yPos += 6;
             doc.setFont('helvetica', 'normal');
-            
-            // Use formatting utilities for consistent precision
-            const formatCurrent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                window.FormattingUtils.formatCurrent : (v => v.toFixed(2));
             
             const scData = [
                 ['Fault Type', 'Current (kA)', 'Current (A)'],
@@ -160,16 +163,6 @@ async function generateEnhancedPDF(results, projectData) {
                 doc.text('Enhanced Results:', 25, yPos);
                 yPos += 6;
                 doc.setFont('helvetica', 'normal');
-                
-                // Use formatting utilities if available, otherwise fall back to toFixed
-                const formatCurrent = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatCurrent : (v => v.toFixed(3));
-                const formatImpedance = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatImpedance : (v => v.toFixed(6));
-                const formatRatio = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatRatio : (v => v.toFixed(2));
-                const formatTimeConstant = (typeof window !== 'undefined' && window.FormattingUtils) ? 
-                    window.FormattingUtils.formatTimeConstant : (v => (v * 1000).toFixed(2) + ' ms');
                 
                 doc.text(`Symmetrical Current (Isym): ${formatCurrent(scResult.results.isym_kA)} kA`, 30, yPos);
                 yPos += 5;
